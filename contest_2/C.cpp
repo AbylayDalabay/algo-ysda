@@ -3,7 +3,6 @@
 #include <iostream>
 #include <limits>
 #include <queue>
-#include <random>
 #include <stdexcept>
 #include <vector>
 
@@ -49,14 +48,6 @@ private:
         }
     }
 
-    void Display() {
-        std::cout << "CurrentHeap: " << std::endl;
-        for (int value : tree_) {
-            std::cout << value << ' ';
-        }
-        std::cout << std::endl;
-    }
-
 public:
     MinHeap() : size_(0) {}
 
@@ -75,47 +66,13 @@ public:
             throw std::runtime_error(
                 "Heap is empty. Impossible to ExtractMin().");
         }
-        Display();
         int min_value = tree_[0];
-        std::cout << "Min value: " << min_value << std::endl;
         tree_[0] = tree_.back();
         tree_.pop_back();
         --size_;
         SiftDown();
-        Display();
         return min_value;
     }
 };
 
-int ChoosePivot(int left_index, int right_index) {
-    std::random_device rd;
-    std::mt19937 rng(rd());
-    std::uniform_int_distribution<int> distrib(left_index, right_index);
-    int pivot_index = distrib(rng);
-
-    return pivot_index;
-}
-
-int main() {
-    MinHeap min_heap;
-    std::priority_queue<int, std::vector<int>, std::greater<int>> pq;
-
-    const int kMinBound = -100;
-    const int kMaxBound = 100;
-    const int kEpochCount = 10000;
-
-    for (int epoch = 0; epoch < kEpochCount; ++epoch) {
-        int current_value = ChoosePivot(kMinBound, kMaxBound);
-        min_heap.Push(current_value);
-        pq.push(current_value);
-
-        int pq_top = pq.top();
-        pq.pop();
-
-        int min_heap_top = min_heap.ExtractMin();
-
-        assert(pq_top == min_heap_top);
-    }
-
-    return 0;
-}
+int main() { return 0; }
