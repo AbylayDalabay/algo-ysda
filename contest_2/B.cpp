@@ -1,24 +1,9 @@
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <iostream>
 #include <random>
 #include <vector>
-#include <chrono>
-
-// int GetRandomInt(int left_bound, int right_bound) {
-//     std::mt19937 generator(kRandomSeed);
-//     std::uniform_int_distribution<int> distrib(left_bound, right_bound);
-//     int random_index = distrib(generator);
-//     return random_index;
-// }
-
-// const int kRandomSeed = 668;
-// std::mt19937 generator(kRandomSeed);
-
-std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
-
-// const int kMaxDepth = 30;
-const int kArraySize = 10'000;
 
 template <typename T>
 void QuickSort(std::vector<T>& array, int left_index, int right_index) {
@@ -26,12 +11,10 @@ void QuickSort(std::vector<T>& array, int left_index, int right_index) {
         return;
     }
 
-    assert(array.size() == kArraySize);
-    assert(0 <= left_index && left_index <= right_index);
-    assert(left_index < array.size() && right_index < array.size());
-
     std::uniform_int_distribution<int> distrib(left_index, right_index);
 
+    const int kRandomSeed = 667;
+    std::mt19937 rng(kRandomSeed);
     int pivot_index = distrib(rng);
     int pivot = array[pivot_index];
 
@@ -48,78 +31,79 @@ void QuickSort(std::vector<T>& array, int left_index, int right_index) {
 
     std::swap(array[first_greater_index], array[right_index]);
 
-    bool is_splitted = true;
-    for (int index = left_index; index < first_greater_index; ++index) {
-        is_splitted &= (array[index] <= pivot);
-    }
-    for (int index = first_greater_index; index <= right_index; ++index) {
-        is_splitted &= (array[index] >= pivot);
-    }
-
-    if (!is_splitted) {
-        std::cout << "Mistake split --> After array \n" << std::endl;
-
-        for (int index = left_index; index <= right_index; ++index) {
-            std::cout << array[index] << ' ';
-        }
-        std::cout << std::endl;
-        assert(false);
-    }
-
     QuickSort(array, left_index, first_greater_index - 1);
     QuickSort(array, first_greater_index + 1, right_index);
 }
 
-void StressTest() {
-    const int kEpochNum = 1000;
-    const int kMinValue = -1000;
-    const int kMaxValue = 1000;
-
-    for (int epoch = 1; epoch < kEpochNum; ++epoch) {
-        std::uniform_int_distribution<int> distrib(kMinValue, kMaxValue);
-
-        std::vector<int> random_array;
-        for (int index = 0; index < kArraySize; ++index) {
-            random_array.push_back(distrib(rng));
-        }
-
-        // std::cout << "Base array" << std::endl;
-        // for (auto x : random_array) {
-        //     std::cout << x << ' ';
-        // }
-        // std::cout << std::endl;
-
-        std::vector<int> custom_array = random_array;
-        QuickSort(custom_array, 0, kArraySize - 1);
-
-        std::vector<int> expected_array = random_array;
-        std::sort(expected_array.begin(), expected_array.end());
-
-        if (custom_array != expected_array) {
-            std::cout << "Not equal" << std::endl;
-
-            std::cout << "STL expected sorted array: " << std::endl;
-            for (const auto& x : expected_array) {
-                std::cout << x << ' ';
-            }
-            std::cout << std::endl;
-
-            std::cout << "Custom sorted array: " << std::endl;
-            for (const auto& x : custom_array) {
-                std::cout << x << ' ';
-            }
-            std::cout << std::endl;
-
-            assert(false);
+int LastNotDoubleGreaterIndex(std::vector<int>& array, int left_bound,
+                              int right_bound, int substract_value,
+                              int not_greater_value) {
+    while (left_bound + 1 < right_bound) {
+        int mid_index = (left_bound + right_bound) / 2;
+        if (array[mid_index] - substract_value <= not_greater_value) {
+            left_bound = mid_index;
         } else {
-            // std::cout << " equal Epoch: " << epoch << std::endl;
+            right_bound = mid_index;
         }
-        // std::cout << "Current completed epoch: " << epoch << std::endl;
     }
+    return left_bound;
 }
 
 int main() {
-    StressTest();
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    int players_size;
+    std::cin >> players_size;
+
+    std::vector<int> players(players_size, 0);
+    for (auto& player_score : players) {
+        std::cin >> player_score;
+    }
+
+    QuickSort(players, 0, std::size(players) - 1);
+
+    // std::sort(players.begin(), players.end());
+
+    // std::cout << "Sorted" << std::endl;
+    // for (auto x : players) {
+    //     std::cout << x << ' ';
+    // }
+    // std::cout << std::endl;
+
+    std::vector<int> prefix_sum(players_size + 1, 0);
+    for (int index = 1; index <= players_size; ++index) {
+        prefix_sum[index] = prefix_sum[index - 1] + players[index - 1];
+    }
+
+    auto get_segment_sum = [&prefix_sum](int left_bound,
+                                         int right_bound) -> int64_t {
+        return prefix_sum[right_bound + 1] - prefix_sum[left_bound];
+    };
+
+    int best_segment_sum = 0;
+    int best_left_bound = 0;
+    int best_right_bound = 0;
+    for (int index = 0; index + 1 < players_size; ++index) {
+        int last_double_not_greater_index =
+            LastNotDoubleGreaterIndex(players, index + 1, players_size,
+                                      players[index], players[index + 1]);
+
+        int current_segment_sum =
+            get_segment_sum(index, last_double_not_greater_index);
+
+        if (current_segment_sum > best_segment_sum) {
+            best_segment_sum = current_segment_sum;
+            best_left_bound = index;
+            best_right_bound = last_double_not_greater_index;
+        }
+    }
+
+    std::cout << best_segment_sum << std::endl;
+    for (int index = best_left_bound; index <= best_right_bound; ++index) {
+        std::cout << index + 1 << ' ';
+    }
+    std::cout << std::endl;
 
     return 0;
 }
