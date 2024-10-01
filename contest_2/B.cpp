@@ -1,109 +1,90 @@
 #include <algorithm>
 #include <cassert>
-#include <cstdint>
+#include <cwchar>
 #include <iostream>
-#include <random>
 #include <vector>
 
-template <typename T>
-void QuickSort(std::vector<T>& array, int left_index, int right_index) {
-    if (left_index >= right_index) {
-        return;
+struct Player {
+    int64_t score;
+    int index;
+
+    bool operator<(const Player& other) const {
+        return this->score < other.score;
     }
+};
 
-    std::uniform_int_distribution<int> distrib(left_index, right_index);
-
-    const int kRandomSeed = 667;
-    std::mt19937 rng(kRandomSeed);
-    int pivot_index = distrib(rng);
-    int pivot = array[pivot_index];
-
-    std::swap(array[pivot_index], array[right_index]);
-
-    int first_greater_index = left_index;
-    for (int current_index = left_index; current_index < right_index;
-         ++current_index) {
-        if (array[current_index] <= pivot) {
-            std::swap(array[first_greater_index], array[current_index]);
-            ++first_greater_index;
-        }
-    }
-
-    std::swap(array[first_greater_index], array[right_index]);
-
-    QuickSort(array, left_index, first_greater_index - 1);
-    QuickSort(array, first_greater_index + 1, right_index);
-}
-
-int LastNotDoubleGreaterIndex(std::vector<int>& array, int left_bound,
-                              int right_bound, int substract_value,
-                              int not_greater_value) {
-    while (left_bound + 1 < right_bound) {
-        int mid_index = (left_bound + right_bound) / 2;
-        if (array[mid_index] - substract_value <= not_greater_value) {
-            left_bound = mid_index;
+int GetLastNotGreater(const std::vector<Player>& array, int left_index,
+                      int right_index, int64_t not_greater_value) {
+    int target_index = left_index;
+    while (left_index <= right_index) {
+        int mid_index = (left_index + right_index) / 2;
+        if (array[mid_index].score <= not_greater_value) {
+            target_index = mid_index;
+            left_index = mid_index + 1;
         } else {
-            right_bound = mid_index;
+            right_index = mid_index - 1;
         }
     }
-    return left_bound;
+    return target_index;
 }
 
 int main() {
     std::ios_base::sync_with_stdio(false);
     std::cin.tie(nullptr);
 
-    int players_size;
-    std::cin >> players_size;
+    int array_size;
+    std::cin >> array_size;
 
-    std::vector<int> players(players_size, 0);
-    for (auto& player_score : players) {
-        std::cin >> player_score;
+    std::vector<Player> array(array_size);
+    for (int index = 0; index < array_size; ++index) {
+        std::cin >> array[index].score;
+        array[index].index = index;
     }
 
-    QuickSort(players, 0, std::size(players) - 1);
+    std::sort(array.begin(), array.end());
 
-    // std::sort(players.begin(), players.end());
-
-    // std::cout << "Sorted" << std::endl;
-    // for (auto x : players) {
-    //     std::cout << x << ' ';
-    // }
-    // std::cout << std::endl;
-
-    std::vector<int> prefix_sum(players_size + 1, 0);
-    for (int index = 1; index <= players_size; ++index) {
-        prefix_sum[index] = prefix_sum[index - 1] + players[index - 1];
+    std::vector<int64_t> pref(array_size + 1, 0);
+    for (int index = 1; index <= array_size; ++index) {
+        pref[index] = pref[index - 1] + array[index - 1].score;
     }
 
-    auto get_segment_sum = [&prefix_sum](int left_bound,
-                                         int right_bound) -> int64_t {
-        return prefix_sum[right_bound + 1] - prefix_sum[left_bound];
+    auto get_sum = [&](int left_index, int right_index) -> int64_t {
+        return pref[right_index + 1] - pref[left_index];
     };
 
-    int best_segment_sum = 0;
-    int best_left_bound = 0;
-    int best_right_bound = 0;
-    for (int index = 0; index + 1 < players_size; ++index) {
-        int last_double_not_greater_index =
-            LastNotDoubleGreaterIndex(players, index + 1, players_size,
-                                      players[index], players[index + 1]);
+    int best_left_index = 0;
+    int best_right_index = 0;
+    int64_t best_sum = 0;
 
-        int current_segment_sum =
-            get_segment_sum(index, last_double_not_greater_index);
-
-        if (current_segment_sum > best_segment_sum) {
-            best_segment_sum = current_segment_sum;
-            best_left_bound = index;
-            best_right_bound = last_double_not_greater_index;
+    for (int index = 0; index < array_size; ++index) {
+        if (array[index].score > best_sum) {
+            best_left_index = index;
+            best_right_index = index;
+            best_sum = array[index].score;
         }
     }
 
-    std::cout << best_segment_sum << std::endl;
-    for (int index = best_left_bound; index <= best_right_bound; ++index) {
+    for (int index = 0; index + 1 < array_size; ++index) {
+        int target_index =
+            GetLastNotGreater(array, index + 1, array_size - 1,
+                              array[index].score + array[index + 1].score);
+
+        if (get_sum(index, target_index) > best_sum) {
+            best_sum = get_sum(index, target_index);
+            best_left_index = index;
+            best_right_index = target_index;
+        }
+    }
+
+    std::vector<int> best_indices;
+    for (int index = best_left_index; index <= best_right_index; ++index) {
+        best_indices.push_back(array[index].index);
+    }
+
+    std::sort(best_indices.begin(), best_indices.end());
+
+    std::cout << best_sum << std::endl;
+    for (int index : best_indices) {
         std::cout << index + 1 << ' ';
     }
-    std::cout << std::endl;
-
-    return 0;
 }
