@@ -1,18 +1,16 @@
 #include <algorithm>
 #include <iostream>
-#include <limits>
+#include <type_traits>
 #include <vector>
 
 struct Point {
     int x, expiration_time;
 
-    bool operator<(const Point& other) const {
-        return this->x < other.x;
-    }
+    bool operator<(const Point& other) const { return this->x < other.x; }
 };
 
 struct SegmentTime {
-    static constexpr int kInf = std::numeric_limits<int>::max();
+    static constexpr int kInf = 2e9 + 500;
 
     int left_index_time;
     int right_index_time;
@@ -21,6 +19,8 @@ struct SegmentTime {
     SegmentTime(int left_index_time, int right_index_time)
         : left_index_time(left_index_time),
           right_index_time(right_index_time) {}
+
+    void UpdateIfPossible();
 };
 
 int array_size;
@@ -36,20 +36,46 @@ void UpdateDp(int left_index, int right_index) {
 
     // 1) end_l = [l, r - 1].r + [r - 1, r] + [l, r]
     // 2) end_l = [l + 1, r].l + [l, l + 1]
+    // 3) end_l = [l + 1, r].r + [l, r]
     updated_segment_time.left_index_time =
-        std::min(dp[left_index][right_index - 1].right_index_time +
-                     GetDistance(right_index - 1, right_index) +
-                     GetDistance(right_index, left_index),
-                 dp[left_index + 1][right_index].left_index_time +
-                     GetDistance(left_index + 1, left_index));
+        std::min({dp[left_index][right_index - 1].right_index_time +
+                      GetDistance(right_index - 1, right_index) +
+                      GetDistance(right_index, left_index),
+                  dp[left_index + 1][right_index].left_index_time +
+                      GetDistance(left_index + 1, left_index),
+                  dp[left_index + 1][right_index].right_index_time +
+                      GetDistance(left_index, right_index)});
+    // check if not expired time
+    if (updated_segment_time.left_index_time >
+        array[left_index].expiration_time) {
+        updated_segment_time.left_index_time = SegmentTime::kInf;
+    }
 
     // 1) end_r = [l, r - 1].r + [r - 1, r]
     // 2) end_r = [l + 1, r].l + [l, l + 1] + [l, r]
+    // 3) end_r = [l, r - 1].l + [l, r] ?
     updated_segment_time.right_index_time =
-        std::min(dp[left_index][right_index - 1].right_index_time +
-                     GetDistance(right_index - 1, right_index),
-                 dp[left_index + 1][right_index].left_index_time +
-                     GetDistance(left_index, left_index + 1) +
+        std::min({dp[left_index][right_index - 1].right_index_time +
+                      GetDistance(right_index - 1, right_index),
+                  dp[left_index + 1][right_index].left_index_time +
+                      GetDistance(left_index, left_index + 1) +
+                      GetDistance(left_index, right_index),
+                  dp[left_index][right_index - 1].left_index_time +
+                      GetDistance(left_index, right_index)});
+    // check if not expired time
+    if (updated_segment_time.right_index_time >
+        array[right_index].expiration_time) {
+        updated_segment_time.right_index_time = SegmentTime::kInf;
+    }
+
+    updated_segment_time.left_index_time =
+        std::min(updated_segment_time.left_index_time,
+                 updated_segment_time.right_index_time +
+                     GetDistance(left_index, right_index));
+
+    updated_segment_time.right_index_time =
+        std::min(updated_segment_time.right_index_time,
+                 updated_segment_time.left_index_time +
                      GetDistance(left_index, right_index));
 
     if (updated_segment_time.left_index_time <
@@ -81,7 +107,14 @@ int main() {
 
     for (int index = 0; index + 1 < array_size; ++index) {
         const int kCurrentDist = GetDistance(index, index + 1);
-        dp[index][index + 1] = SegmentTime(kCurrentDist, kCurrentDist);
+
+        dp[index][index + 1].left_index_time =
+            (kCurrentDist <= array[index].expiration_time ? kCurrentDist
+                                                          : SegmentTime::kInf);
+        dp[index][index + 1].right_index_time =
+            (kCurrentDist <= array[index + 1].expiration_time
+                 ? kCurrentDist
+                 : SegmentTime::kInf);
     }
 
     for (int len = 3; len <= array_size; ++len) {
@@ -89,15 +122,22 @@ int main() {
         int right_index = len - 1;
         while (right_index < array_size) {
             UpdateDp(left_index, right_index);
-
-            std::cout << "[" << left_index << ", " <<  right_index << "] time => " << dp[left_index][right_index].left_index_time << ", " << dp[left_index][right_index].right_index_time << std::endl; 
-
             ++left_index;
             ++right_index;
         }
-        std::cout << std::endl;
     }
 
+    for (int len = 1; len <= array_size; ++len) {
+        std::cout << "len: " << len << std::endl;
+        for (int index = 0; index + len - 1 < array_size; ++index) {
+            std::cout << "[" << index << ", " << index + len - 1 << "] "
+                      << dp[index][index + len - 1].left_index_time << " - "
+                      << dp[index][index + len - 1].right_index_time
+                      << std::endl;
+        }
+    }
+
+    std::cout << "Answer: " << std::endl;
     std::cout << dp[0][array_size - 1].left_index_time << std::endl;
     std::cout << dp[0][array_size - 1].right_index_time << std::endl;
 
