@@ -57,7 +57,7 @@ int CountMaxPoints(const std::vector<Point>& points, const double& radius) {
         }
 
         bool operator<(const SegmentState& other) const {
-            if (fabs(this->coordinate - other.coordinate) < kEpsilon) {
+            if (fabs(this->coordinate - other.coordinate) <     ) {
                 return this->contribution_value > other.contribution_value;
             }
             return this->coordinate < other.coordinate;
