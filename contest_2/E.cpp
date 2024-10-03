@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <iostream>
-#include <type_traits>
 #include <vector>
 
 struct Point {
@@ -127,19 +126,14 @@ int main() {
         }
     }
 
-    for (int len = 1; len <= array_size; ++len) {
-        std::cout << "len: " << len << std::endl;
-        for (int index = 0; index + len - 1 < array_size; ++index) {
-            std::cout << "[" << index << ", " << index + len - 1 << "] "
-                      << dp[index][index + len - 1].left_index_time << " - "
-                      << dp[index][index + len - 1].right_index_time
-                      << std::endl;
-        }
-    }
+    int min_time = std::min(dp[0][array_size - 1].left_index_time,
+                            dp[0][array_size - 1].right_index_time);
 
-    std::cout << "Answer: " << std::endl;
-    std::cout << dp[0][array_size - 1].left_index_time << std::endl;
-    std::cout << dp[0][array_size - 1].right_index_time << std::endl;
+    if (min_time >= SegmentTime::kInf) {
+        std::cout << "No solution";
+    } else {
+        std::cout << min_time;
+    }
 
     return 0;
 }
