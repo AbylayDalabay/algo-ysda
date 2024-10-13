@@ -1,7 +1,11 @@
+#include <sys/types.h>
+
+#include <algorithm>
 #include <cassert>
+#include <cstdint>
+#include <ios>
 #include <iostream>
 #include <random>
-#include <regex>
 #include <vector>
 
 template <typename T>
@@ -62,8 +66,6 @@ int Partition(std::vector<T>& array, int left_index, int right_index,
 template <typename T>
 T GetKStatistics(std::vector<T>& array, int left_index, int right_index,
                  int current_k) {
-    std::cout << "[" << left_index << ", " << right_index << "]" << std::endl;
-    std::cout << "Current K: " << current_k << std::endl;
     if (left_index >= right_index) {
         assert(false);
     } else if (right_index - left_index == 1) {
@@ -82,32 +84,13 @@ T GetKStatistics(std::vector<T>& array, int left_index, int right_index,
         Partition(array, kEqualIndex, right_index,
                   [kPivot](const auto& elem) { return (elem == kPivot); });
 
-    std::cout << "[" << left_index << ", " << kEqualIndex << ", "
-              << kGreaterIndex << ", " << right_index << "]" << std::endl;
-
-    std::cout << "__________________________" << std::endl;
-    std::cout << "Pivot: " << kPivot << std::endl;
-    std::cout << "Current K: " << current_k << std::endl;
-
-    std::cout << "less: " << std::endl;
-    Print(array, left_index, kEqualIndex);
-    std::cout << "equal: " << std::endl;
-    Print(array, kEqualIndex, kGreaterIndex);
-    std::cout << "greater: " << std::endl;
-    Print(array, kGreaterIndex, right_index);
-
-    std::cout << "__________________________" << std::endl;
-
     if (left_index + current_k < kEqualIndex) {
-        std::cout << "go to less" << std::endl;
         return GetKStatistics(array, left_index, kEqualIndex, current_k);
     }
     if (kEqualIndex <= left_index + current_k &&
         left_index + current_k < kGreaterIndex) {
-        std::cout << "go to equal" << std::endl;
         return array[left_index + current_k];
     }
-    std::cout << "go to greater" << std::endl;
     return GetKStatistics(array, kGreaterIndex, right_index,
                           left_index + current_k - kGreaterIndex);
 }
@@ -116,53 +99,44 @@ int main() {
     int array_size;
     std::cin >> array_size;
 
-    std::vector<int> array(array_size);
-    for (auto& x : array) {
-        std::cin >> x;
+    unsigned int current_a;
+    unsigned int current_b;
+    std::cin >> current_a >> current_b;
+
+    Generator gen(current_a, current_b);
+
+    std::vector<int64_t> array;
+    for (int index = 0; index < array_size; ++index) {
+        array.push_back(gen.NextRand32());
+        std::cout << array.back() << ' ';
+    }
+    std::cout << std::endl;
+
+    int64_t median_value = GetKStatistics(array, 0, array_size, array_size / 2);
+
+    std::cout << median_value << std::endl;
+
+    int64_t answer = 0;
+    for (auto x : array) {
+        answer += std::abs(x - median_value);
     }
 
-    std::vector<int> array_copy = array;
-    std::sort(array_copy.begin(), array_copy.end());
+    std::cout << answer << std::endl;
 
-    int sex = 0;
-    for (int current_k = 0; current_k < array_size; ++current_k) {
-        int target_value = GetKStatistics(array, 0, array_size, current_k);
-
-        if (target_value != array_copy[current_k]) {
-            std::cout << target_value << ", " << array_copy[current_k]
-                      << std::endl;
-            assert(false);
-        } else {
-            ++sex;
+    for (auto x : array) {
+        int64_t current_answer = 0;
+        for (auto y : array) {
+            current_answer += std::abs(x - y);
         }
+        std::cout << x << " => " << current_answer << std::endl;
     }
 
-    std::cout << "Correct: " << sex << std::endl;
-
-    // const int kPivot = SelectPivot(0, array_size);
-
-    // int split_index =
-    //     Partition(array, 0, array_size,
-    //               [kPivot](const auto& elem) { return (elem < kPivot); });
-
-    // Print(array, 0, split_index);
-    // Print(array, split_index, array_size);
-
-    // int current_a;
-    // int current_b;
-    // std::cin >> current_a >> current_b;
-
-    // Generator gen(current_a, current_b);
-
-    // std::vector<unsigned int> array;
-    // for (int index = 0; index < array_size; ++index) {
-    //     array.push_back(gen.NextRand32());
-    // }
-
-    // for (auto x : array) {
-    //     std::cout << x << ' ';
-    // }
-    // std::cout << std::endl;
+    std::sort(array.begin(), array.end());
+    std::cout << "array: " << std::endl;
+    for (auto x : array) {
+        std::cout << x << ' ';
+    }
+    std::cout << std::endl;
 
     return 0;
 }
