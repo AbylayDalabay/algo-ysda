@@ -60,11 +60,11 @@ int Partition(std::vector<T>& array, int left_index, int right_index,
 }
 
 template <typename T>
-int GetKStatistics(std::vector<T>& array, int left_index, int right_index,
-                   int current_k) {
+T GetKStatistics(std::vector<T>& array, int left_index, int right_index,
+                 int current_k) {
     std::cout << "[" << left_index << ", " << right_index << "]" << std::endl;
     std::cout << "Current K: " << current_k << std::endl;
-    if (left_index > right_index) {
+    if (left_index >= right_index) {
         assert(false);
     } else if (right_index - left_index == 1) {
         assert(current_k == 0);
@@ -105,8 +105,7 @@ int GetKStatistics(std::vector<T>& array, int left_index, int right_index,
     if (kEqualIndex <= left_index + current_k &&
         left_index + current_k < kGreaterIndex) {
         std::cout << "go to equal" << std::endl;
-        return GetKStatistics(array, kEqualIndex, kGreaterIndex,
-                              left_index + current_k - kEqualIndex);
+        return array[left_index + current_k];
     }
     std::cout << "go to greater" << std::endl;
     return GetKStatistics(array, kGreaterIndex, right_index,
@@ -122,7 +121,23 @@ int main() {
         std::cin >> x;
     }
 
-    std::cout << GetKStatistics(array, 0, array_size, 2) << std::endl;
+    std::vector<int> array_copy = array;
+    std::sort(array_copy.begin(), array_copy.end());
+
+    int sex = 0;
+    for (int current_k = 0; current_k < array_size; ++current_k) {
+        int target_value = GetKStatistics(array, 0, array_size, current_k);
+
+        if (target_value != array_copy[current_k]) {
+            std::cout << target_value << ", " << array_copy[current_k]
+                      << std::endl;
+            assert(false);
+        } else {
+            ++sex;
+        }
+    }
+
+    std::cout << "Correct: " << sex << std::endl;
 
     // const int kPivot = SelectPivot(0, array_size);
 
