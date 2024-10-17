@@ -5,6 +5,14 @@
 #include <random>
 #include <vector>
 
+template <typename Iterator>
+void Print(Iterator begin, Iterator end) {
+    for (Iterator current_it = begin; current_it != end; ++current_it) {
+        std::cout << *current_it << ' ';
+    }
+    std::cout << std::endl;
+}
+
 struct Player {
     int64_t score;
     int index;
@@ -27,12 +35,11 @@ Iterator Partition(Iterator first, Iterator last, UnaryPred pred) {
         return first;
     }
     Iterator split_it = first;
-    while (first != last) {
-        if (pred(*first)) {
-            std::iter_swap(split_it, first);
+    for (Iterator current_it = first; current_it != last; ++current_it) {
+        if (pred(*current_it)) {
+            std::iter_swap(split_it, current_it);
             ++split_it;
         }
-        ++first;
     }
     return split_it;
 }
@@ -70,6 +77,19 @@ void QuickSort(Iterator first, Iterator last, Comparator comparator) {
             return !comparator(*kPivotIterator, elem);
         });
 
+    std::cout << "Pivot: " << *kPivotIterator << std::endl;
+
+    std::cout << "less:" << std::endl;
+    Print(first, kEqualIterator);
+
+    std::cout << "equal:" << std::endl;
+    Print(kEqualIterator, kGreaterIterator);
+
+    std::cout << "greater:" << std::endl;
+    Print(kGreaterIterator, last);
+
+    std::cout << "//////////////////////////////////" << std::endl;
+
     QuickSort(first, kEqualIterator, comparator);
     QuickSort(kGreaterIterator, last, comparator);
 }
@@ -89,63 +109,45 @@ int GetLastNotGreater(const std::vector<Player>& array, int left_index,
     return target_index;
 }
 
+int SelectPivot(int left_index, int right_index) {
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::uniform_int_distribution<int> distrib(left_index, right_index);
+    int pivot_index = distrib(rng);
+
+    return pivot_index;
+}
+
+std::vector<int64_t> GetRandom(int array_size) {
+    std::vector<int64_t> array;
+    const int64_t kMaxValue = 10;
+    for (int index = 0; index < array_size; ++index) {
+        array.push_back(SelectPivot(0, kMaxValue));
+    }
+    return array;
+}
+
 int main() {
     std::ios_base::sync_with_stdio(false);
     std::cin.tie(nullptr);
 
-    int array_size;
-    std::cin >> array_size;
+    const int kMaxEpoch = 5;
+    for (int index = 0; index < kMaxEpoch; ++index) {
+        auto array = GetRandom(kMaxEpoch);
+        auto array_copy = array;
 
-    std::vector<Player> array(array_size);
-    for (int index = 0; index < array_size; ++index) {
-        std::cin >> array[index].score;
-        array[index].index = index;
-    }
+        std::sort(array.begin(), array.end());
+        QuickSort(array_copy.begin(), array_copy.end(),
+                  [](const auto& lhs, const auto& rhs) { return lhs < rhs; });
 
-    QuickSort(array.begin(), array.end(), Player::CompByScore);
-
-    std::vector<int64_t> pref(array_size + 1, 0);
-    for (int index = 1; index <= array_size; ++index) {
-        pref[index] = pref[index - 1] + array[index - 1].score;
-    }
-
-    auto get_sum = [&](int left_index, int right_index) -> int64_t {
-        return pref[right_index + 1] - pref[left_index];
-    };
-
-    int best_left_index = 0;
-    int best_right_index = 0;
-    int64_t best_sum = 0;
-
-    for (int index = 0; index < array_size; ++index) {
-        if (array[index].score > best_sum) {
-            best_left_index = index;
-            best_right_index = index;
-            best_sum = array[index].score;
+        if (array != array_copy) {
+            Print(array.begin(), array.end());
+            Print(array_copy.begin(), array_copy.end());
+            std::cout << "____________________________" << std::endl;
+            break;
         }
-    }
-
-    for (int index = 0; index + 1 < array_size; ++index) {
-        int target_index =
-            GetLastNotGreater(array, index + 1, array_size - 1,
-                              array[index].score + array[index + 1].score);
-
-        if (get_sum(index, target_index) > best_sum) {
-            best_sum = get_sum(index, target_index);
-            best_left_index = index;
-            best_right_index = target_index;
+        if (array == array_copy) {
+            std::cout << "Correct 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000" << std::endl;
         }
-    }
-
-    std::vector<Player> best_indices;
-    for (int index = best_left_index; index <= best_right_index; ++index) {
-        best_indices.push_back(array[index]);
-    }
-
-    QuickSort(best_indices.begin(), best_indices.end(), Player::CompByIndex);
-
-    std::cout << best_sum << std::endl;
-    for (auto player : best_indices) {
-        std::cout << player.index + 1 << ' ';
     }
 }
