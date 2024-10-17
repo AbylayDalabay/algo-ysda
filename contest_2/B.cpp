@@ -1,17 +1,12 @@
 #include <algorithm>
 #include <cassert>
+#include <cstdlib>
 #include <cwchar>
 #include <iostream>
+#include <iterator>
+#include <ostream>
 #include <random>
 #include <vector>
-
-template <typename Iterator>
-void Print(Iterator begin, Iterator end) {
-    for (Iterator current_it = begin; current_it != end; ++current_it) {
-        std::cout << *current_it << ' ';
-    }
-    std::cout << std::endl;
-}
 
 struct Player {
     int64_t score;
@@ -46,9 +41,9 @@ Iterator Partition(Iterator first, Iterator last, UnaryPred pred) {
 
 template <typename Iterator>
 Iterator SelectPivot(Iterator first, Iterator last) {
-    size_t distance = std::distance(first, last);
-    if (distance <= 1) {
-        return first;
+    int distance = std::distance(first, last);
+    if (distance <= 0) {
+        assert(false);
     }
 
     const int kRandomSeed = 667;
@@ -77,77 +72,91 @@ void QuickSort(Iterator first, Iterator last, Comparator comparator) {
             return !comparator(*kPivotIterator, elem);
         });
 
-    std::cout << "Pivot: " << *kPivotIterator << std::endl;
-
-    std::cout << "less:" << std::endl;
-    Print(first, kEqualIterator);
-
-    std::cout << "equal:" << std::endl;
-    Print(kEqualIterator, kGreaterIterator);
-
-    std::cout << "greater:" << std::endl;
-    Print(kGreaterIterator, last);
-
-    std::cout << "//////////////////////////////////" << std::endl;
-
     QuickSort(first, kEqualIterator, comparator);
     QuickSort(kGreaterIterator, last, comparator);
 }
 
-int GetLastNotGreater(const std::vector<Player>& array, int left_index,
-                      int right_index, int64_t not_greater_value) {
-    int target_index = left_index;
-    while (left_index <= right_index) {
-        int mid_index = (left_index + right_index) / 2;
-        if (array[mid_index].score <= not_greater_value) {
-            target_index = mid_index;
-            left_index = mid_index + 1;
-        } else {
-            right_index = mid_index - 1;
+template <typename Iterator>
+std::vector<Player> BuildMostEffectiveSolidaryTeam(Iterator first,
+                                                   Iterator last) {
+    auto is_solidary = [](Iterator first, Iterator last) -> bool {
+        if (std::distance(first, last) <= 1) {
+            return true;
+        }
+        return first->score + std::next(first)->score >= last->score;
+    };
+
+    int64_t best_summary_score = 0;
+    int64_t current_summary_score = 0;
+
+    Iterator best_first = first;
+    Iterator best_last = first;
+
+    Iterator current_first = first;
+    for (Iterator current_last = first; current_last != last; ++current_last) {
+        current_summary_score += current_last->score;
+
+        while (current_first < current_last &&
+               !is_solidary(current_first, current_last)) {
+            current_summary_score -= current_first->score;
+            ++current_first;
+        }
+
+        if (current_summary_score >= best_summary_score) {
+            best_summary_score = current_summary_score;
+            best_first = current_first;
+            best_last = current_last;
         }
     }
-    return target_index;
-}
 
-int SelectPivot(int left_index, int right_index) {
-    std::random_device rd;
-    std::mt19937 rng(rd());
-    std::uniform_int_distribution<int> distrib(left_index, right_index);
-    int pivot_index = distrib(rng);
-
-    return pivot_index;
-}
-
-std::vector<int64_t> GetRandom(int array_size) {
-    std::vector<int64_t> array;
-    const int64_t kMaxValue = 10;
-    for (int index = 0; index < array_size; ++index) {
-        array.push_back(SelectPivot(0, kMaxValue));
+    std::vector<Player> answer;
+    for (auto current_it = best_first; current_it <= best_last; ++current_it) {
+        answer.push_back(*current_it);
     }
-    return array;
+
+    return answer;
+}
+
+std::vector<Player> InputPlayersVector() {
+    int players_size;
+    std::cin >> players_size;
+    std::vector<Player> players(players_size);
+    for (int current_index = 0; current_index < players_size; ++current_index) {
+        std::cin >> players[current_index].score;
+        players[current_index].index = current_index + 1;
+    }
+    return players;
 }
 
 int main() {
     std::ios_base::sync_with_stdio(false);
     std::cin.tie(nullptr);
 
-    const int kMaxEpoch = 5;
-    for (int index = 0; index < kMaxEpoch; ++index) {
-        auto array = GetRandom(kMaxEpoch);
-        auto array_copy = array;
+    std::vector<Player> players = InputPlayersVector();
 
-        std::sort(array.begin(), array.end());
-        QuickSort(array_copy.begin(), array_copy.end(),
-                  [](const auto& lhs, const auto& rhs) { return lhs < rhs; });
+    QuickSort(players.begin(), players.end(), Player::CompByScore);
 
-        if (array != array_copy) {
-            Print(array.begin(), array.end());
-            Print(array_copy.begin(), array_copy.end());
-            std::cout << "____________________________" << std::endl;
-            break;
-        }
-        if (array == array_copy) {
-            std::cout << "Correct 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000" << std::endl;
-        }
+    std::vector<Player> best_players =
+        BuildMostEffectiveSolidaryTeam(players.begin(), players.end());
+
+    int64_t summary_score = 0;
+    for (const auto& player : best_players) {
+        summary_score += player.score;
     }
+
+    QuickSort(best_players.begin(), best_players.end(), Player::CompByIndex);
+
+    bool ok = true;
+    for (int index = 0; index + 1 < static_cast<int>(best_players.size());
+         ++index) {
+        ok &= (best_players[index].index < best_players[index + 1].index);
+    }
+    assert(ok);
+
+    std::cout << summary_score << std::endl;
+    for (const auto& player : best_players) {
+        std::cout << player.index << ' ';
+    }
+
+    return 0;
 }
