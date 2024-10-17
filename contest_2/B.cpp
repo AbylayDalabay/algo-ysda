@@ -1,12 +1,17 @@
 #include <algorithm>
 #include <cassert>
-#include <cstdlib>
 #include <cwchar>
 #include <iostream>
-#include <iterator>
-#include <ostream>
 #include <random>
 #include <vector>
+
+template <typename Iterator>
+void Print(Iterator begin, Iterator end) {
+    for (Iterator current_it = begin; current_it != end; ++current_it) {
+        std::cout << *current_it << ' ';
+    }
+    std::cout << std::endl;
+}
 
 struct Player {
     int64_t score;
@@ -24,26 +29,43 @@ struct Player {
     }
 };
 
-template <typename Iterator, typename UnaryPred>
-Iterator Partition(Iterator first, Iterator last, UnaryPred pred) {
-    if (std::distance(first, last) <= 1) {
-        return first;
-    }
+// template <typename Iterator, typename UnaryPred>
+// Iterator Partition(Iterator first, Iterator last, UnaryPred pred) {
+//     Iterator split_it = first;
+//     for (Iterator current_it = first; current_it != last; ++current_it) {
+//         if (pred(*current_it)) {
+//             std::swap(*split_it, *current_it);
+//             ++split_it;
+//         }
+//     }
+//     return split_it;
+// }
+
+template <class Iterator, class Predicate>
+Iterator Partition(Iterator first, Iterator last, Predicate pred) {
     Iterator split_it = first;
+
+    std::cout << "Before partition" << std::endl;
+    Print(first, last);
+
     for (Iterator current_it = first; current_it != last; ++current_it) {
         if (pred(*current_it)) {
-            std::iter_swap(split_it, current_it);
+            std::swap(*split_it, *current_it);
             ++split_it;
         }
     }
+
+    std::cout << "After partition" << std::endl;
+    Print(first, last);
+
     return split_it;
 }
 
 template <typename Iterator>
 Iterator SelectPivot(Iterator first, Iterator last) {
-    int distance = std::distance(first, last);
-    if (distance <= 0) {
-        assert(false);
+    size_t distance = std::distance(first, last);
+    if (distance <= 1) {
+        return first;
     }
 
     const int kRandomSeed = 667;
@@ -60,103 +82,104 @@ void QuickSort(Iterator first, Iterator last, Comparator comparator) {
         return;
     }
 
-    const Iterator kPivotIterator = SelectPivot(first, last);
+    const auto kPivot = *SelectPivot(first, last);
 
     const Iterator kEqualIterator =
-        Partition(first, last, [kPivotIterator, comparator](const auto& elem) {
-            return comparator(elem, *kPivotIterator);
+        Partition(first, last, [kPivot, comparator](const auto& elem) {
+            std::cout << "elem < " << elem << " with pivot: " << kPivot
+                      << " => " << (comparator(elem, kPivot) ? "YES" : "NO")
+                      << std::endl;
+            return comparator(elem, kPivot);
+        });
+    std::cout << "end pivot" << std::endl;
+
+    std::cout << "Pivot: " << kPivot << std::endl;
+
+    const Iterator kGreaterIterator =
+        Partition(kEqualIterator, last, [kPivot, comparator](const auto& elem) {
+            std::cout << "elem < " << elem << " with pivot: " << kPivot
+                      << " => " << (!comparator(kPivot, elem) ? "YES" : "NO")
+                      << std::endl;
+            return !comparator(kPivot, elem);
         });
 
-    const Iterator kGreaterIterator = Partition(
-        kEqualIterator, last, [kPivotIterator, comparator](const auto& elem) {
-            return !comparator(*kPivotIterator, elem);
-        });
+    std::cout << "Pivot: " << kPivot << std::endl;
+
+    std::cout << "less:" << std::endl;
+    Print(first, kEqualIterator);
+
+    std::cout << "equal:" << std::endl;
+    Print(kEqualIterator, kGreaterIterator);
+
+    std::cout << "greater:" << std::endl;
+    Print(kGreaterIterator, last);
+
+    std::cout << "//////////////////////////////////" << std::endl;
 
     QuickSort(first, kEqualIterator, comparator);
     QuickSort(kGreaterIterator, last, comparator);
 }
 
-template <typename Iterator>
-std::vector<Player> BuildMostEffectiveSolidaryTeam(Iterator first,
-                                                   Iterator last) {
-    auto is_solidary = [](Iterator first, Iterator last) -> bool {
-        if (std::distance(first, last) <= 1) {
-            return true;
-        }
-        return first->score + std::next(first)->score >= last->score;
-    };
-
-    int64_t best_summary_score = 0;
-    int64_t current_summary_score = 0;
-
-    Iterator best_first = first;
-    Iterator best_last = first;
-
-    Iterator current_first = first;
-    for (Iterator current_last = first; current_last != last; ++current_last) {
-        current_summary_score += current_last->score;
-
-        while (current_first < current_last &&
-               !is_solidary(current_first, current_last)) {
-            current_summary_score -= current_first->score;
-            ++current_first;
-        }
-
-        if (current_summary_score >= best_summary_score) {
-            best_summary_score = current_summary_score;
-            best_first = current_first;
-            best_last = current_last;
+int GetLastNotGreater(const std::vector<Player>& array, int left_index,
+                      int right_index, int64_t not_greater_value) {
+    int target_index = left_index;
+    while (left_index <= right_index) {
+        int mid_index = (left_index + right_index) / 2;
+        if (array[mid_index].score <= not_greater_value) {
+            target_index = mid_index;
+            left_index = mid_index + 1;
+        } else {
+            right_index = mid_index - 1;
         }
     }
-
-    std::vector<Player> answer;
-    for (auto current_it = best_first; current_it <= best_last; ++current_it) {
-        answer.push_back(*current_it);
-    }
-
-    return answer;
+    return target_index;
 }
 
-std::vector<Player> InputPlayersVector() {
-    int players_size;
-    std::cin >> players_size;
-    std::vector<Player> players(players_size);
-    for (int current_index = 0; current_index < players_size; ++current_index) {
-        std::cin >> players[current_index].score;
-        players[current_index].index = current_index + 1;
+int SelectPivot(int left_index, int right_index) {
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::uniform_int_distribution<int> distrib(left_index, right_index);
+    int pivot_index = distrib(rng);
+
+    return pivot_index;
+}
+
+std::vector<int64_t> GetRandom(int array_size) {
+    std::vector<int64_t> array;
+    const int64_t kMaxValue = 10;
+    for (int index = 0; index < array_size; ++index) {
+        array.push_back(SelectPivot(0, kMaxValue));
     }
-    return players;
+    return array;
 }
 
 int main() {
     std::ios_base::sync_with_stdio(false);
     std::cin.tie(nullptr);
 
-    std::vector<Player> players = InputPlayersVector();
+    const int kMaxEpoch = 10;
+    for (int index = 0; index < kMaxEpoch; ++index) {
+        auto array = GetRandom(kMaxEpoch);
+        auto array_copy = array;
 
-    QuickSort(players.begin(), players.end(), Player::CompByScore);
+        std::cout << "Init array" << std::endl;
+        Print(array.begin(), array.end());
 
-    std::vector<Player> best_players =
-        BuildMostEffectiveSolidaryTeam(players.begin(), players.end());
+        std::sort(array.begin(), array.end());
+        QuickSort(array_copy.begin(), array_copy.end(),
+                  [](const auto& lhs, const auto& rhs) { return lhs < rhs; });
 
-    int64_t summary_score = 0;
-    for (const auto& player : best_players) {
-        summary_score += player.score;
+        if (array != array_copy) {
+            Print(array.begin(), array.end());
+            Print(array_copy.begin(), array_copy.end());
+            std::cout << "____________________________" << std::endl;
+            break;
+        }
+        if (array == array_copy) {
+            std::cout << "Correct "
+                         "00000000000000000000000000000000000000000000000000000"
+                         "000000000000000000000000000000000"
+                      << std::endl;
+        }
     }
-
-    QuickSort(best_players.begin(), best_players.end(), Player::CompByIndex);
-
-    bool ok = true;
-    for (int index = 0; index + 1 < static_cast<int>(best_players.size());
-         ++index) {
-        ok &= (best_players[index].index < best_players[index + 1].index);
-    }
-    assert(ok);
-
-    std::cout << summary_score << std::endl;
-    for (const auto& player : best_players) {
-        std::cout << player.index << ' ';
-    }
-
-    return 0;
 }
