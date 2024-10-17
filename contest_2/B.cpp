@@ -80,9 +80,80 @@ void QuickSort(Iterator first, Iterator last, Comparator comparator) {
     QuickSort(kGreaterIterator, last, comparator);
 }
 
+template <typename Iterator>
+std::vector<Player> BuildMostEffectiveSolidaryTeam(Iterator first,
+                                                   Iterator last) {
+    auto is_solidary = [](Iterator first, Iterator last) -> bool {
+        if (std::distance(first, last) <= 1) {
+            return true;
+        }
+        return first->score + std::next(first)->score >= last->score;
+    };
+
+    int64_t best_summary_score = 0;
+    int64_t current_summary_score = 0;
+
+    Iterator best_first = first;
+    Iterator best_last = first;
+
+    Iterator current_first = first;
+    for (Iterator current_last = first; current_last != last; ++current_last) {
+        current_summary_score += current_last->score;
+
+        while (current_first < current_last &&
+               !is_solidary(current_first, current_last)) {
+            current_summary_score -= current_first->score;
+            ++current_first;
+        }
+
+        if (current_summary_score >= best_summary_score) {
+            best_summary_score = current_summary_score;
+            best_first = current_first;
+            best_last = current_last;
+        }
+    }
+
+    std::vector<Player> answer;
+    for (auto current_it = best_first; current_it <= best_last; ++current_it) {
+        answer.push_back(*current_it);
+    }
+
+    return answer;
+}
+
+std::vector<Player> InputPlayersVector() {
+    int players_size;
+    std::cin >> players_size;
+    std::vector<Player> players(players_size);
+    for (int current_index = 0; current_index < players_size; ++current_index) {
+        std::cin >> players[current_index].score;
+        players[current_index].index = current_index + 1;
+    }
+    return players;
+}
+
 int main() {
     std::ios_base::sync_with_stdio(false);
     std::cin.tie(nullptr);
 
-    
+    std::vector<Player> players = InputPlayersVector();
+
+    QuickSort(players.begin(), players.end(), Player::CompByScore);
+
+    std::vector<Player> best_players =
+        BuildMostEffectiveSolidaryTeam(players.begin(), players.end());
+
+    int64_t summary_score = 0;
+    for (const auto& player : best_players) {
+        summary_score += player.score;
+    }
+
+    QuickSort(best_players.begin(), best_players.end(), Player::CompByIndex);
+
+    std::cout << summary_score << std::endl;
+    for (const auto& player : best_players) {
+        std::cout << player.index << ' ';
+    }
+
+    return 0;
 }
