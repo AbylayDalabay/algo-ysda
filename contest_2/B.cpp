@@ -1,11 +1,7 @@
 #include <algorithm>
 #include <cassert>
-#include <cstddef>
-#include <cstdlib>
 #include <cwchar>
 #include <iostream>
-#include <iterator>
-#include <ostream>
 #include <random>
 #include <vector>
 
@@ -78,93 +74,78 @@ void QuickSort(Iterator first, Iterator last, Comparator comparator) {
     QuickSort(kGreaterIterator, last, comparator);
 }
 
-template <typename Iterator>
-std::vector<Player> BuildMostEffectiveSolidaryTeam(Iterator first,
-                                                   Iterator last) {
-    auto is_solidary = [](Iterator first, Iterator last) -> bool {
-        if (std::distance(first, last) <= 1) {
-            return true;
-        }
-        return first->score + std::next(first)->score >= last->score;
-    };
-
-    int64_t best_summary_score = 0;
-    int64_t current_summary_score = 0;
-
-    Iterator best_first = first;
-    Iterator best_last = first;
-
-    Iterator current_first = first;
-    for (Iterator current_last = first; current_last != last; ++current_last) {
-        current_summary_score += current_last->score;
-
-        while (current_first < current_last &&
-               !is_solidary(current_first, current_last)) {
-            current_summary_score -= current_first->score;
-            ++current_first;
-        }
-
-        if (current_summary_score >= best_summary_score) {
-            best_summary_score = current_summary_score;
-            best_first = current_first;
-            best_last = current_last;
+int GetLastNotGreater(const std::vector<Player>& array, int left_index,
+                      int right_index, int64_t not_greater_value) {
+    int target_index = left_index;
+    while (left_index <= right_index) {
+        int mid_index = (left_index + right_index) / 2;
+        if (array[mid_index].score <= not_greater_value) {
+            target_index = mid_index;
+            left_index = mid_index + 1;
+        } else {
+            right_index = mid_index - 1;
         }
     }
-
-    std::vector<Player> answer;
-    for (auto current_it = best_first; current_it <= best_last; ++current_it) {
-        answer.push_back(*current_it);
-    }
-
-    return answer;
-}
-
-std::vector<Player> InputPlayersVector() {
-    int players_size;
-    std::cin >> players_size;
-    std::vector<Player> players(players_size);
-    for (int current_index = 0; current_index < players_size; ++current_index) {
-        std::cin >> players[current_index].score;
-        players[current_index].index = current_index + 1;
-    }
-    return players;
+    return target_index;
 }
 
 int main() {
     std::ios_base::sync_with_stdio(false);
     std::cin.tie(nullptr);
 
-    std::vector<Player> players = InputPlayersVector();
+    int array_size;
+    std::cin >> array_size;
 
-    QuickSort(players.begin(), players.end(), Player::CompByScore);
-    auto players_copy = players;
-    std::sort(players_copy.begin(), players_copy.end(), Player::CompByScore);
-    assert(players.size() == players_copy.size());
-
-    std::vector<Player> best_players =
-        BuildMostEffectiveSolidaryTeam(players.begin(), players.end());
-
-    int64_t summary_score = 0;
-    for (const auto& player : best_players) {
-        summary_score += player.score;
+    std::vector<Player> array(array_size);
+    for (int index = 0; index < array_size; ++index) {
+        std::cin >> array[index].score;
+        array[index].index = index;
     }
 
-    QuickSort(best_players.begin(), best_players.end(), Player::CompByIndex);
-    auto best_players_copy = best_players;
-    std::sort(best_players.begin(), best_players.end(), Player::CompByIndex);
-    assert(best_players.size() == best_players_copy.size());
+    QuickSort(array.begin(), array.end(), Player::CompByScore);
 
-    int64_t summary_score_copy = 0;
-    for (const auto& player : best_players) {
-        summary_score_copy += player.score;
+    std::vector<int64_t> pref(array_size + 1, 0);
+    for (int index = 1; index <= array_size; ++index) {
+        pref[index] = pref[index - 1] + array[index - 1].score;
     }
 
-    assert(summary_score == summary_score_copy);
+    auto get_sum = [&](int left_index, int right_index) -> int64_t {
+        return pref[right_index + 1] - pref[left_index];
+    };
 
-    std::cout << summary_score << std::endl;
-    for (const auto& player : best_players) {
-        std::cout << player.index << ' ';
+    int best_left_index = 0;
+    int best_right_index = 0;
+    int64_t best_sum = 0;
+
+    for (int index = 0; index < array_size; ++index) {
+        if (array[index].score > best_sum) {
+            best_left_index = index;
+            best_right_index = index;
+            best_sum = array[index].score;
+        }
     }
 
-    return 0;
+    for (int index = 0; index + 1 < array_size; ++index) {
+        int target_index =
+            GetLastNotGreater(array, index + 1, array_size - 1,
+                              array[index].score + array[index + 1].score);
+
+        if (get_sum(index, target_index) > best_sum) {
+            best_sum = get_sum(index, target_index);
+            best_left_index = index;
+            best_right_index = target_index;
+        }
+    }
+
+    std::vector<Player> best_indices;
+    for (int index = best_left_index; index <= best_right_index; ++index) {
+        best_indices.push_back(array[index]);
+    }
+
+    QuickSort(best_indices.begin(), best_indices.end(), Player::CompByIndex);
+
+    std::cout << best_sum << std::endl;
+    for (auto player : best_indices) {
+        std::cout << player.index + 1 << ' ';
+    }
 }
