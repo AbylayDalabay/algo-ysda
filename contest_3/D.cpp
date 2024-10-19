@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cassert>
 #include <iostream>
+#include <iterator>
 #include <vector>
 
 template <typename T>
@@ -50,8 +51,7 @@ private:
     inline int RightVertex(int vertex) const { return 2 * vertex + 2; }
 
     void Pull(int vertex) {
-        if (LeftVertex(vertex) < tree_.size() &&
-            RightVertex(vertex) < tree_.size()) {
+        if (LeftVertex(vertex) < 2 * size_ && RightVertex(vertex) < 2 * size_) {
             tree_[vertex] =
                 tree_[LeftVertex(vertex)] + tree_[RightVertex(vertex)];
         }
@@ -93,17 +93,6 @@ private:
                               RightVertex(vertex), mid_index, right_index);
     }
 
-    void RecPrint(int vertex, int left_index, int right_index) {
-        if (right_index - left_index == 1) {
-            std::cout << tree_[vertex] << ' ';
-            return;
-        }
-        int mid_index = (left_index + right_index) / 2;
-        RecPrint(LeftVertex(vertex), left_index, mid_index);
-        RecPrint(RightVertex(vertex), mid_index, right_index);
-        std::cout << tree_[vertex] << ' ';
-    }
-
 public:
     SegmentTree<T>(const std::vector<T>& array)
         : array_(array), array_size_(array.size()) {
@@ -123,23 +112,6 @@ public:
         }
         return GetKStatistics(k_order, 0, 0, size_);
     }
-
-    void Print() const {
-        std::cout << "Tree state: " << "size: " << 2 * size_ - 1 << std::endl;
-        int left_index = 0;
-        int right_index = 0;
-        while (left_index < tree_.size() && right_index < tree_.size()) {
-            for (int index = left_index; index <= right_index; ++index) {
-                std::cout << tree_[index] << ' ';
-            }
-            std::cout << std::endl;
-            left_index = LeftVertex(left_index);
-            right_index = RightVertex(right_index);
-        }
-        std::cout << "_________________________________________" << std::endl;
-    }
-
-    void RecPrint() { RecPrint(0, 0, size_); }
 };
 
 int main() {
@@ -159,22 +131,10 @@ int main() {
 
     auto unique_array = Unique(array);
 
-    std::cout << "unique_array" << std::endl;
-    for (auto x : unique_array) {
-        std::cout << x << ' ';
-    }
-    std::cout << std::endl << std::endl;
-
     std::vector<int> permut_array(array_size);
     for (int index = 0; index < array_size; ++index) {
         permut_array[index] = Find(unique_array, array[index]);
     }
-
-    std::cout << "permut_array" << std::endl;
-    for (auto x : permut_array) {
-        std::cout << x << ' ';
-    }
-    std::cout << std::endl << std::endl;
 
     SegmentTree<int> segment_tree(unique_array);
 
@@ -182,11 +142,6 @@ int main() {
     int right_index = 0;
 
     segment_tree.Update(permut_array[0], 1);
-
-    for (auto x : array) {
-        std::cout << x << ' ';
-    }
-    std::cout << std::endl;
 
     for (auto operation_type : queries_string) {
         if (operation_type == 'L') {
@@ -198,8 +153,7 @@ int main() {
         }
 
         int k_order_index = segment_tree.GetKStatistics(k_order);
-        std::cout << "k_order: " << (k_order_index == -1 ? -1 : unique_array[k_order_index]) << std::endl;
-
-        segment_tree.Print();
+        std::cout << (k_order_index == -1 ? -1 : unique_array[k_order_index])
+                  << std::endl;
     }
 }
