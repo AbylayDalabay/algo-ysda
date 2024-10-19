@@ -125,13 +125,18 @@ public:
     }
 
     void Print() const {
-        std::cout << "Tree state: " << std::endl;
-        for (int pow = 1; pow < size_; pow *= 2) {
-            for (int index = pow / 2; index < pow; ++index) {
+        std::cout << "Tree state: " << "size: " << 2 * size_ - 1 << std::endl;
+        int left_index = 0;
+        int right_index = 0;
+        while (left_index < tree_.size() && right_index < tree_.size()) {
+            for (int index = left_index; index <= right_index; ++index) {
                 std::cout << tree_[index] << ' ';
             }
             std::cout << std::endl;
+            left_index = LeftVertex(left_index);
+            right_index = RightVertex(right_index);
         }
+        std::cout << "_________________________________________" << std::endl;
     }
 
     void RecPrint() { RecPrint(0, 0, size_); }
@@ -154,27 +159,47 @@ int main() {
 
     auto unique_array = Unique(array);
 
-    for (auto& x : array) {
-        x = Find(unique_array, x);
+    std::cout << "unique_array" << std::endl;
+    for (auto x : unique_array) {
+        std::cout << x << ' ';
     }
+    std::cout << std::endl << std::endl;
+
+    std::vector<int> permut_array(array_size);
+    for (int index = 0; index < array_size; ++index) {
+        permut_array[index] = Find(unique_array, array[index]);
+    }
+
+    std::cout << "permut_array" << std::endl;
+    for (auto x : permut_array) {
+        std::cout << x << ' ';
+    }
+    std::cout << std::endl << std::endl;
 
     SegmentTree<int> segment_tree(unique_array);
 
-    segment_tree.Update(0, 1);
-    segment_tree.Update(1, 1);
-    segment_tree.Update(2, 1);
-    segment_tree.Update(2, 1);
+    int left_index = 0;
+    int right_index = 0;
 
-    segment_tree.Print();
+    segment_tree.Update(permut_array[0], 1);
 
-    std::cout << "Kstat: " << segment_tree.GetKStatistics(1) << std::endl;
-    std::cout << "Kstat: " << segment_tree.GetKStatistics(2) << std::endl;
-    std::cout << "Kstat: " << segment_tree.GetKStatistics(3) << std::endl;
-    std::cout << "Kstat: " << segment_tree.GetKStatistics(4) << std::endl;
-
-    std::cout << "_________________________" << std::endl;
-
-    segment_tree.RecPrint();
-
+    for (auto x : array) {
+        std::cout << x << ' ';
+    }
     std::cout << std::endl;
+
+    for (auto operation_type : queries_string) {
+        if (operation_type == 'L') {
+            segment_tree.Update(permut_array[left_index], -1);
+            ++left_index;
+        } else {
+            ++right_index;
+            segment_tree.Update(permut_array[right_index], 1);
+        }
+
+        int k_order_index = segment_tree.GetKStatistics(k_order);
+        std::cout << "k_order: " << (k_order_index == -1 ? -1 : unique_array[k_order_index]) << std::endl;
+
+        segment_tree.Print();
+    }
 }
