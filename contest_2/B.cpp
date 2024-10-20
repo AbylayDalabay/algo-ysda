@@ -14,12 +14,6 @@ struct Player {
     }
 };
 
-template <typename Iterator>
-struct PlayersTeam {
-    Iterator first;
-    Iterator last;
-};
-
 std::vector<Player> InputPlayersVector() {
     int players_size;
     std::cin >> players_size;
@@ -30,6 +24,12 @@ std::vector<Player> InputPlayersVector() {
     }
     return players;
 }
+
+template <typename Iterator>
+struct PlayersTeam {
+    Iterator first;
+    Iterator last;
+};
 
 template <typename Iterator, typename Generator>
 Iterator SelectPivot(Iterator first, Iterator last, Generator generator) {
@@ -126,31 +126,23 @@ std::vector<Player> BuildMostEffectiveSolidaryTeam(
     return std::vector<Player>(best_team.first, best_team.last);
 }
 
-template <typename T>
-T Accumulate(const std::vector<T>& vector) {
-    T summary_efficiency = 0;
-    for (const auto& x : vector) {
-        summary_efficiency += x;
+int64_t SummaryEfficiency(const std::vector<Player>& players) {
+    int64_t summary_efficiency = 0;
+    for (const auto& x : players) {
+        summary_efficiency += x.efficiency;
     }
+
     return summary_efficiency;
 }
 
 int main() {
-    std::ios_base::sync_with_stdio(false);
-    std::cin.tie(nullptr);
-
     std::vector<Player> players = InputPlayersVector();
 
     std::vector<Player> best_team = BuildMostEffectiveSolidaryTeam(players);
 
     QuickSort(best_team.begin(), best_team.end(), Player::CompByIndex);
 
-    int64_t summary_effectiveness = 0;
-    for (const auto& player : best_team) {
-        summary_effectiveness += player.efficiency;
-    }
-
-    std::cout << summary_effectiveness << std::endl;
+    std::cout << SummaryEfficiency(best_team) << std::endl;
     for (const auto& player : best_team) {
         std::cout << player.index << ' ';
     }
