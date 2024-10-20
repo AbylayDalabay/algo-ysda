@@ -1,9 +1,5 @@
-#include <sys/types.h>
-
-#include <algorithm>
 #include <cassert>
 #include <cstdint>
-#include <ios>
 #include <iostream>
 #include <random>
 #include <vector>
@@ -39,60 +35,61 @@ public:
     }
 };
 
-const int kRandomSeed = 667;
-std::mt19937 rng(kRandomSeed);
-
 int SelectPivot(int left_index, int right_index) {
+    static std::mt19937 rng(std::random_device{}());
     std::uniform_int_distribution<int> distrib(left_index, right_index - 1);
     int pivot_index = distrib(rng);
 
     return pivot_index;
 }
 
-template <class T, class UnaryPred>
-int Partition(std::vector<T>& array, int left_index, int right_index,
-              UnaryPred predicat) {
-    int split_index = left_index;
-    for (int index = left_index; index < right_index; ++index) {
-        if (predicat(array[index])) {
-            std::swap(array[split_index], array[index]);
-            ++split_index;
+template <typename T>
+void Partition(std::vector<T>& array, int left_index, int right_index,
+               int& left_part_end, int& right_part_start, T pivot_value) {
+    int i = left_index;
+    left_part_end = left_index;
+    right_part_start = right_index - 1;
+
+    while (i <= right_part_start) {
+        if (array[i] < pivot_value) {
+            std::swap(array[left_part_end], array[i]);
+            ++left_part_end;
+            ++i;
+        } else if (array[i] > pivot_value) {
+            std::swap(array[i], array[right_part_start]);
+            --right_part_start;
+        } else {
+            ++i;
         }
     }
-
-    return split_index;
 }
 
 template <typename T>
 T GetKStatistics(std::vector<T>& array, int left_index, int right_index,
-                 int current_k) {
-    if (left_index >= right_index) {
-        assert(false);
-    } else if (right_index - left_index == 1) {
-        assert(current_k == 0);
-        return array[left_index];
+                 int current_k, int depth = 0) {
+    while (true) {
+        if (left_index >= right_index) {
+            assert(false);
+        }
+        if (right_index - left_index == 1) {
+            return array[left_index];
+        }
+
+        const int pivot_index = SelectPivot(left_index, right_index);
+        const T pivot_value = array[pivot_index];
+
+        int left_part_end, right_part_start;
+        Partition(array, left_index, right_index, left_part_end,
+                  right_part_start, pivot_value);
+
+        if (current_k < left_part_end) {
+            right_index = left_part_end;
+        } else if (current_k > right_part_start) {
+            left_index = right_part_start + 1;
+        } else {
+            return pivot_value;
+        }
     }
-
-    const int kPivotIndex = SelectPivot(left_index, right_index);
-    const int kPivot = array[kPivotIndex];
-
-    const int kEqualIndex =
-        Partition(array, left_index, right_index,
-                  [kPivot](const auto& elem) { return (elem < kPivot); });
-
-    const int kGreaterIndex =
-        Partition(array, kEqualIndex, right_index,
-                  [kPivot](const auto& elem) { return (elem == kPivot); });
-
-    if (left_index + current_k < kEqualIndex) {
-        return GetKStatistics(array, left_index, kEqualIndex, current_k);
-    }
-    if (kEqualIndex <= left_index + current_k &&
-        left_index + current_k < kGreaterIndex) {
-        return array[left_index + current_k];
-    }
-    return GetKStatistics(array, kGreaterIndex, right_index,
-                          left_index + current_k - kGreaterIndex);
 }
 
 int main() {
@@ -105,38 +102,19 @@ int main() {
 
     Generator gen(current_a, current_b);
 
-    std::vector<int64_t> array;
+    std::vector<int64_t> array(array_size);
     for (int index = 0; index < array_size; ++index) {
-        array.push_back(gen.NextRand32());
-        std::cout << array.back() << ' ';
+        array[index] = gen.NextRand32();
     }
-    std::cout << std::endl;
 
     int64_t median_value = GetKStatistics(array, 0, array_size, array_size / 2);
 
-    std::cout << median_value << std::endl;
-
     int64_t answer = 0;
     for (auto x : array) {
-        answer += std::abs(x - median_value);
+        answer += (x >= median_value) ? x - median_value : median_value - x;
     }
 
     std::cout << answer << std::endl;
-
-    for (auto x : array) {
-        int64_t current_answer = 0;
-        for (auto y : array) {
-            current_answer += std::abs(x - y);
-        }
-        std::cout << x << " => " << current_answer << std::endl;
-    }
-
-    std::sort(array.begin(), array.end());
-    std::cout << "array: " << std::endl;
-    for (auto x : array) {
-        std::cout << x << ' ';
-    }
-    std::cout << std::endl;
 
     return 0;
 }
