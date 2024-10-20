@@ -1,16 +1,13 @@
-#include <algorithm>
-#include <cassert>
-#include <cwchar>
 #include <iostream>
 #include <random>
 #include <vector>
 
 struct Player {
-    int64_t score;
+    int64_t efficiency;
     int index;
 
-    static bool CompByScore(const Player& lhs, const Player& rhs) {
-        return lhs.score < rhs.score;
+    static bool CompByEfficiency(const Player& lhs, const Player& rhs) {
+        return lhs.efficiency < rhs.efficiency;
     }
     static bool CompByIndex(const Player& lhs, const Player& rhs) {
         return lhs.index < rhs.index;
@@ -22,6 +19,27 @@ struct PlayersTeam {
     Iterator first;
     Iterator last;
 };
+
+std::vector<Player> InputPlayersVector() {
+    int players_size;
+    std::cin >> players_size;
+    std::vector<Player> players(players_size);
+    for (int current_index = 0; current_index < players_size; ++current_index) {
+        std::cin >> players[current_index].efficiency;
+        players[current_index].index = current_index + 1;
+    }
+    return players;
+}
+
+template <typename Iterator, typename Generator>
+Iterator SelectPivot(Iterator first, Iterator last, Generator generator) {
+    size_t distance = std::distance(first, last);
+
+    std::uniform_int_distribution<int> distrib(0, distance - 1);
+
+    const int kPivotIndex = distrib(generator);
+    return first + kPivotIndex;
+}
 
 template <typename Iterator, typename Predicate>
 Iterator Partition(Iterator first, Iterator last, Predicate pred) {
@@ -35,16 +53,6 @@ Iterator Partition(Iterator first, Iterator last, Predicate pred) {
     }
 
     return split_it;
-}
-
-template <typename Iterator, typename Generator>
-Iterator SelectPivot(Iterator first, Iterator last, Generator generator) {
-    size_t distance = std::distance(first, last);
-
-    std::uniform_int_distribution<int> distrib(0, distance - 1);
-
-    const int kPivotIndex = distrib(generator);
-    return first + kPivotIndex;
 }
 
 template <typename Iterator, typename Comparator, typename Generator>
@@ -78,33 +86,38 @@ void QuickSort(Iterator first, Iterator last, Comparator comparator) {
     QuickSort(first, last, comparator, random_generator);
 }
 
-template <typename Iterator>
-std::vector<Player> BuildMostEffectiveSolidaryTeam(Iterator first,
-                                                   Iterator last) {
-    auto is_solidary = [](Iterator first, Iterator last) -> bool {
+template <typename Iterator = std::vector<Player>::iterator>
+std::vector<Player> BuildMostEffectiveSolidaryTeam(
+    std::vector<Player> players) {
+    auto is_solidary_segment = [](Iterator first, Iterator last) -> bool {
         if (std::distance(first, last) <= 1) {
             return true;
         }
-        return first->score + std::next(first)->score >= last->score;
+        return first->efficiency + std::next(first)->efficiency >=
+               last->efficiency;
     };
 
-    int64_t best_summary_score = 0;
-    int64_t current_summary_score = 0;
+    QuickSort(players.begin(), players.end(), Player::CompByEfficiency);
 
-    PlayersTeam<Iterator> best_team{first, std::next(first)};
+    int64_t best_summary_effectiveness = 0;
+    int64_t current_summary_effectiveness = 0;
 
-    Iterator current_first = first;
-    for (Iterator current_last = first; current_last != last; ++current_last) {
-        current_summary_score += current_last->score;
+    PlayersTeam<Iterator> best_team{players.begin(),
+                                    std::next(players.begin())};
 
-        while (current_first < current_last &&
-               !is_solidary(current_first, current_last)) {
-            current_summary_score -= current_first->score;
+    Iterator current_first = players.begin();
+    for (Iterator current_last = players.begin(); current_last != players.end();
+         ++current_last) {
+        current_summary_effectiveness += current_last->efficiency;
+
+        while (current_first != current_last &&
+               !is_solidary_segment(current_first, current_last)) {
+            current_summary_effectiveness -= current_first->efficiency;
             ++current_first;
         }
 
-        if (current_summary_score > best_summary_score) {
-            best_summary_score = current_summary_score;
+        if (current_summary_effectiveness > best_summary_effectiveness) {
+            best_summary_effectiveness = current_summary_effectiveness;
             best_team.first = current_first;
             best_team.last = std::next(current_last);
         }
@@ -113,15 +126,13 @@ std::vector<Player> BuildMostEffectiveSolidaryTeam(Iterator first,
     return std::vector<Player>(best_team.first, best_team.last);
 }
 
-std::vector<Player> InputPlayersVector() {
-    int players_size;
-    std::cin >> players_size;
-    std::vector<Player> players(players_size);
-    for (int current_index = 0; current_index < players_size; ++current_index) {
-        std::cin >> players[current_index].score;
-        players[current_index].index = current_index + 1;
+template <typename T>
+T Accumulate(const std::vector<T>& vector) {
+    T summary_efficiency = 0;
+    for (const auto& x : vector) {
+        summary_efficiency += x;
     }
-    return players;
+    return summary_efficiency;
 }
 
 int main() {
@@ -130,22 +141,16 @@ int main() {
 
     std::vector<Player> players = InputPlayersVector();
 
-    const int kRandomState = 667;
-    std::mt19937 random_generator(kRandomState);
-
-    QuickSort(players.begin(), players.end(), Player::CompByScore);
-
-    std::vector<Player> best_team =
-        BuildMostEffectiveSolidaryTeam(players.begin(), players.end());
-
-    int64_t summary_score = 0;
-    for (const auto& player : best_team) {
-        summary_score += player.score;
-    }
+    std::vector<Player> best_team = BuildMostEffectiveSolidaryTeam(players);
 
     QuickSort(best_team.begin(), best_team.end(), Player::CompByIndex);
 
-    std::cout << summary_score << std::endl;
+    int64_t summary_effectiveness = 0;
+    for (const auto& player : best_team) {
+        summary_effectiveness += player.efficiency;
+    }
+
+    std::cout << summary_effectiveness << std::endl;
     for (const auto& player : best_team) {
         std::cout << player.index << ' ';
     }
