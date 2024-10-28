@@ -153,5 +153,25 @@ public:
             std::cout << std::endl;
         }
     }
-    bool Contains(int number) const;
+    bool Contains(int number) const {
+        if (!main_hash_func_.has_value()) {
+            return false;
+        }
+
+        int bucket_index = main_hash_func_.value()(number);
+
+        if (!bucket_hash_func_[bucket_index].has_value()) {
+            return false;
+        }
+
+        int index = bucket_hash_func_[bucket_index].value()(number);
+
+        auto found_value = bucket_hash_table_[bucket_index][index];
+
+        if (!found_value.has_value()) {
+            return false;
+        }
+
+        return found_value.value() == number;
+    }
 };
