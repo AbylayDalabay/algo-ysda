@@ -24,7 +24,7 @@ private:
 
 public:
     static int64_t CountCollisions(const std::vector<int>& array,
-                                   const OptionalFunction& current_hash_func,
+                                   OptionalFunction current_hash_func,
                                    int hash_table_size) {
         if (!current_hash_func.has_value()) {
             return kInf;
@@ -43,8 +43,8 @@ public:
     }
 
     static int SelectRandom() {
-        std::random_device rd;
-        std::mt19937 random_generator(rd());
+        const int kRandomSeed = 667;
+        static std::mt19937 random_generator(kRandomSeed);
         std::uniform_int_distribution<int> distrib(0, kPrimeMod - 1);
 
         return distrib(random_generator);
@@ -54,26 +54,31 @@ public:
                                                   int hash_table_size,
                                                   int64_t collision_limit) {
         if (hash_table_size == 0) {
-            return OptionalFunction(std::nullopt);
+            return std::nullopt;
         }
 
-        int epoch_count = 0;
         while (true) {
             int a_param = SelectRandom();
             int b_param = SelectRandom();
 
             std::function<int(int)> current_hash_func =
-                [a_param, b_param, prime_mod = kPrimeMod,
-                 hash_table_size](int value) -> int {
-                return ((static_cast<int64_t>(a_param) * value + b_param) %
-                        prime_mod) %
-                       hash_table_size;
+                [a_param = a_param, b_param = b_param, prime_mod = kPrimeMod,
+                 hash_table_size = hash_table_size](int value) -> int {
+                auto return_value =
+                    (static_cast<int64_t>(a_param) * value + b_param) %
+                    prime_mod;
+                if (return_value < 0) {
+                    return_value += prime_mod;
+                }
+                return_value %= hash_table_size;
+                assert(0 <= return_value && return_value < hash_table_size);
+                return return_value;
             };
 
-            ++epoch_count;
-            if (CountCollisions(array, current_hash_func, hash_table_size) <=
-                collision_limit) {
-                std::cout << "Converged after: " << epoch_count << std::endl;
+            auto col_sum =
+                CountCollisions(array, current_hash_func, hash_table_size);
+
+            if (col_sum <= collision_limit) {
                 return OptionalFunction(current_hash_func);
             }
         }
@@ -89,21 +94,10 @@ public:
             return;
         }
 
-        std::cout << "main_hash completed" << std::endl;
-
         std::vector<std::vector<int>> buckets(size_);
         for (auto x : numbers) {
             int hash_value = main_hash_func_.value()(x);
             buckets[hash_value].push_back(x);
-        }
-
-        std::cout << "buckets: " << std::endl;
-        for (auto bucket : buckets) {
-            std::cout << "bucket: ";
-            for (auto x : bucket) {
-                std::cout << x << ' ';
-            }
-            std::cout << std::endl;
         }
 
         bucket_hash_func_.assign(size_, std::nullopt);
@@ -114,20 +108,8 @@ public:
             int64_t current_bucket_hash_table_size =
                 static_cast<int64_t>(current_bucket_size) * current_bucket_size;
 
-            std::cout << index << " started" << std::endl;
-
-            auto hui = SelectPerfectHashFunc(buckets[index],
-                                             current_bucket_hash_table_size, 0);
-
-            std::cout << index << " returned" << std::endl;
-
-            bucket_hash_func_[index] = hui;
-
-            std::cout << index << " ended" << std::endl;
-            // std::cout << "bucket has hash func: "
-            //           << (bucket_hash_func_[index].has_value() ? "YES" :
-            //           "NO")
-            //           << std::endl;
+            bucket_hash_func_[index] = SelectPerfectHashFunc(
+                buckets[index], current_bucket_hash_table_size, 0);
 
             if (!bucket_hash_func_[index].has_value()) {
                 continue;
@@ -141,16 +123,6 @@ public:
 
                 bucket_hash_table_[index][hash_value] = x;
             }
-        }
-
-        std::cout << "Hash table" << std::endl;
-        for (auto bucket : bucket_hash_table_) {
-            for (auto x : bucket) {
-                if (x.has_value()) {
-                    std::cout << x.value() << ' ';
-                }
-            }
-            std::cout << std::endl;
         }
     }
     bool Contains(int number) const {
