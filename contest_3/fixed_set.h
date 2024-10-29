@@ -7,11 +7,14 @@
 #include <random>
 #include <vector>
 
+const int kRandomSeed = 667;
+static std::mt19937_64 random_generator(kRandomSeed);
+
 class FixedSet {
 private:
     int size_;
 
-    using OptionalFunction = std::optional<std::function<int(int)>>;
+    using OptionalFunction = std::optional<std::function<int64_t(int)>>;
 
     OptionalFunction main_hash_func_;
     std::vector<OptionalFunction> bucket_hash_func_;
@@ -19,8 +22,8 @@ private:
     std::vector<std::vector<std::optional<int>>> bucket_hash_table_;
 
     static const int64_t kInf = std::numeric_limits<int64_t>::max();
-    static const int kPrimeMod = 1e9 + 7;
-    static const int kCoefCollision = 5;
+    static const int64_t kPrimeMod = 87'178'291'199;
+    static const int kCoefCollision = 7;
 
 public:
     static int64_t CountCollisions(const std::vector<int>& array,
@@ -42,10 +45,8 @@ public:
         return collisions_sum;
     }
 
-    static int SelectRandom() {
-        const int kRandomSeed = 667;
-        static std::mt19937 random_generator(kRandomSeed);
-        std::uniform_int_distribution<int> distrib(0, kPrimeMod - 1);
+    static int64_t SelectRandom() {
+        std::uniform_int_distribution<int64_t> distrib(0, kPrimeMod - 1);
 
         return distrib(random_generator);
     }
@@ -57,22 +58,25 @@ public:
             return std::nullopt;
         }
 
+        int epoch_count = 0;
         while (true) {
-            int a_param = SelectRandom();
-            int b_param = SelectRandom();
+            int64_t a_param = SelectRandom();
+            int64_t b_param = SelectRandom();
 
-            std::function<int(int)> current_hash_func =
+            ++epoch_count;
+            assert(epoch_count <= 30);
+
+            std::function<int64_t(int)> current_hash_func =
                 [a_param = a_param, b_param = b_param, prime_mod = kPrimeMod,
-                 hash_table_size = hash_table_size](int value) -> int {
-                auto return_value =
+                 hash_table_size = hash_table_size](int value) -> int64_t {
+                auto hash_value =
                     (static_cast<int64_t>(a_param) * value + b_param) %
                     prime_mod;
-                if (return_value < 0) {
-                    return_value += prime_mod;
+                if (hash_value < 0) {
+                    hash_value += prime_mod;
                 }
-                return_value %= hash_table_size;
-                assert(0 <= return_value && return_value < hash_table_size);
-                return return_value;
+                hash_value %= hash_table_size;
+                return hash_value;
             };
 
             auto col_sum =
