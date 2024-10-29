@@ -81,7 +81,7 @@ void QuickSort(Iterator first, Iterator last, Comparator comparator,
 template <typename Iterator, typename Comparator>
 void QuickSort(Iterator first, Iterator last, Comparator comparator) {
     const int kRandomState = 667;
-    std::mt19937 random_generator(kRandomState);
+    static std::mt19937 random_generator(kRandomState);
 
     QuickSort(first, last, comparator, random_generator);
 }
@@ -89,14 +89,6 @@ void QuickSort(Iterator first, Iterator last, Comparator comparator) {
 template <typename Iterator = std::vector<Player>::iterator>
 std::vector<Player> BuildMostEffectiveSolidaryTeam(
     std::vector<Player> players) {
-    auto is_solidary_segment = [](Iterator first, Iterator last) -> bool {
-        if (std::distance(first, last) <= 1) {
-            return true;
-        }
-        return first->efficiency + std::next(first)->efficiency >=
-               last->efficiency;
-    };
-
     QuickSort(players.begin(), players.end(), Player::CompByEfficiency);
 
     int64_t best_summary_effectiveness = 0;
@@ -105,25 +97,36 @@ std::vector<Player> BuildMostEffectiveSolidaryTeam(
     PlayersTeam<Iterator> best_team{players.begin(),
                                     std::next(players.begin())};
 
-    Iterator current_first = players.begin();
-    for (Iterator current_last = players.begin(); current_last != players.end();
-         ++current_last) {
-        current_summary_effectiveness += current_last->efficiency;
+    PlayersTeam<Iterator> current_team;
 
-        while (current_first != current_last &&
-               !is_solidary_segment(current_first, current_last)) {
-            current_summary_effectiveness -= current_first->efficiency;
-            ++current_first;
+    current_team.first = players.begin();
+
+    auto is_solidary_segment = [](Iterator first, Iterator last) -> bool {
+        if (std::distance(first, last) <= 1) {
+            return true;
+        }
+        return first->efficiency + std::next(first)->efficiency >=
+               last->efficiency;
+    };
+
+    for (current_team.last = players.begin();
+         current_team.last != players.end(); ++current_team.last) {
+        current_summary_effectiveness += current_team.last->efficiency;
+
+        while (current_team.first != current_team.last &&
+               !is_solidary_segment(current_team.first, current_team.last)) {
+            current_summary_effectiveness -= current_team.first->efficiency;
+            ++current_team.first;
         }
 
         if (current_summary_effectiveness > best_summary_effectiveness) {
             best_summary_effectiveness = current_summary_effectiveness;
-            best_team.first = current_first;
-            best_team.last = std::next(current_last);
+            best_team.first = current_team.first;
+            best_team.last = std::next(current_team.last);
         }
     }
 
-    return std::vector<Player>(best_team.first, best_team.last);
+    return {best_team.first, best_team.last};
 }
 
 int64_t SummaryEfficiency(const std::vector<Player>& players) {
