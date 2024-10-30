@@ -1,4 +1,7 @@
+#include <cstdint>
 #include <iostream>
+#include <numeric>
+#include <ostream>
 #include <random>
 #include <vector>
 
@@ -14,13 +17,15 @@ struct Player {
     }
 };
 
-std::vector<Player> InputPlayersVector() {
+std::vector<Player> InputPlayersVector(std::istream& in = std::cin) {
     int players_size;
-    std::cin >> players_size;
-    std::vector<Player> players(players_size);
+    in >> players_size;
+    std::vector<Player> players;
+    players.reserve(players_size);
     for (int current_index = 0; current_index < players_size; ++current_index) {
-        std::cin >> players[current_index].efficiency;
-        players[current_index].index = current_index + 1;
+        int64_t current_efficiency;
+        in >> current_efficiency;
+        players.emplace_back(current_efficiency, current_index + 1);
     }
     return players;
 }
@@ -86,9 +91,10 @@ void QuickSort(Iterator first, Iterator last, Comparator comparator) {
     QuickSort(first, last, comparator, random_generator);
 }
 
-template <typename Iterator = std::vector<Player>::iterator>
 std::vector<Player> BuildMostEffectiveSolidaryTeam(
     std::vector<Player> players) {
+    using Iterator = std::vector<Player>::iterator;
+
     QuickSort(players.begin(), players.end(), Player::CompByEfficiency);
 
     int64_t best_summary_effectiveness = 0;
@@ -130,25 +136,32 @@ std::vector<Player> BuildMostEffectiveSolidaryTeam(
 }
 
 int64_t SummaryEfficiency(const std::vector<Player>& players) {
-    int64_t summary_efficiency = 0;
-    for (const auto& x : players) {
-        summary_efficiency += x.efficiency;
-    }
+    int64_t summary_efficiency =
+        std::accumulate(players.begin(), players.end(), static_cast<int64_t>(0),
+                        [](int64_t sum, const Player& player) {
+                            return sum + player.efficiency;
+                        });
 
     return summary_efficiency;
 }
 
-int main() {
-    std::vector<Player> players = InputPlayersVector();
+std::ostream& OutputVector(const std::vector<Player>& players,
+                           std::ostream& os = std::cout) {
+    os << SummaryEfficiency(players) << std::endl;
+    for (const Player& player : players) {
+        os << player.index << ' ';
+    }
+    return os;
+}
 
-    std::vector<Player> best_team = BuildMostEffectiveSolidaryTeam(players);
+int main() {
+    auto players = InputPlayersVector();
+
+    auto best_team = BuildMostEffectiveSolidaryTeam(players);
 
     QuickSort(best_team.begin(), best_team.end(), Player::CompByIndex);
 
-    std::cout << SummaryEfficiency(best_team) << std::endl;
-    for (const auto& player : best_team) {
-        std::cout << player.index << ' ';
-    }
+    OutputVector(best_team);
 
     return 0;
 }
