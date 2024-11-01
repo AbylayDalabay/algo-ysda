@@ -2,6 +2,8 @@
 #include <chrono>
 #include <cstdint>
 #include <iostream>
+#include <ostream>
+#include <random>
 #include <vector>
 
 class CustomHash {
@@ -143,6 +145,8 @@ bool CheckEquality(VertexState first, VertexState second,
                    const std::vector<int64_t>& second_hashs,
                    std::vector<int>& vertex_bijection) {
     if (first_hashs[first.vertex] != second_hashs[second.vertex]) {
+        std::cout << "Mismatch hash: " << first.vertex
+                  << " != " << second.vertex << std::endl;
         return false;
     }
 
@@ -152,6 +156,8 @@ bool CheckEquality(VertexState first, VertexState second,
         second.tree.Childrens(second.vertex);
 
     if (first_childrens.size() != second_childrens.size()) {
+        std::cout << "Mismatch size: " << first.vertex
+                  << " != " << second.vertex << std::endl;
         return false;
     }
 
@@ -180,16 +186,23 @@ int main() {
     int tree_size;
     std::cin >> tree_size;
 
-    Tree first_tree(tree_size);
-    for (int index = 0; index < tree_size - 1; ++index) {
-        int from;
-        int to;
-        std::cin >> from >> to;
-        --from;
-        --to;
-        first_tree.AddEdge({from, to});
+    const int kRandomSeed = 668;
+
+    std::vector<int> permutation(tree_size, kRandomSeed);
+    for (int index = 0; index < tree_size; ++index) {
+        permutation[index] = index;
     }
 
+    std::mt19937 generator(kRandomSeed);
+    std::shuffle(permutation.begin(), permutation.end(), generator);
+
+    std::cout << "permutation: " << std::endl;
+    for (int index = 0; index < tree_size; ++index) {
+        std::cout << permutation[index] << ' ';
+    }
+    std::cout << std::endl;
+
+    Tree first_tree(tree_size);
     Tree second_tree(tree_size);
     for (int index = 0; index < tree_size - 1; ++index) {
         int from;
@@ -197,8 +210,25 @@ int main() {
         std::cin >> from >> to;
         --from;
         --to;
-        second_tree.AddEdge({from, to});
+        first_tree.AddEdge({from, to});
+
+        second_tree.AddEdge({permutation[from], permutation[to]});
     }
+
+    // for (int index = 0; index < tree_size - 1; ++index) {
+    //     int from;
+    //     int to;
+    //     std::cin >> from >> to;
+    //     --from;
+    //     --to;
+
+    //     std::cout << from << " => " << permutation[from] << std::endl;
+    //     std::cout << to << " => " << permutation[to] << std::endl;
+
+    //     from = permutation[from];
+    //     to = permutation[to];
+    //     second_tree.AddEdge({from, to});
+    // }
 
     first_tree.PrintEdges();
 
@@ -224,7 +254,7 @@ int main() {
 
     std::vector<int64_t> first_tree_hashs = first_tree.CalculateSubtreeHashs(2);
     std::vector<int64_t> second_tree_hashs =
-        second_tree.CalculateSubtreeHashs(3);
+        second_tree.CalculateSubtreeHashs(0);
 
     std::cout << "first_tree_hashs" << std::endl;
     for (int index = 0; index < first_tree_hashs.size(); ++index) {
@@ -240,7 +270,7 @@ int main() {
 
     std::vector<int> vertex_bijection(tree_size, -1);
     bool ok =
-        CheckEquality({2, -1, first_tree}, {3, -1, second_tree},
+        CheckEquality({2, -1, first_tree}, {0, -1, second_tree},
                       first_tree_hashs, second_tree_hashs, vertex_bijection);
 
     std::cout << (ok ? "Correct" : "Not correct") << std::endl;
