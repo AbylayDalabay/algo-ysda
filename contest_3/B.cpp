@@ -4,6 +4,8 @@
 #include <iostream>
 #include <ostream>
 #include <random>
+#include <set>
+#include <unordered_set>
 #include <vector>
 
 class CustomHash {
@@ -129,7 +131,7 @@ public:
         for (const Edge& edge : edges_) {
             std::cout << edge.from << ' ' << edge.to << std::endl;
         }
-        std::cout << std::endl;
+        std::cout << "__________________________" << std::endl;
     }
 };
 
@@ -145,8 +147,8 @@ bool CheckEquality(VertexState first, VertexState second,
                    const std::vector<int64_t>& second_hashs,
                    std::vector<int>& vertex_bijection) {
     if (first_hashs[first.vertex] != second_hashs[second.vertex]) {
-        std::cout << "Mismatch hash: " << first.vertex
-                  << " != " << second.vertex << std::endl;
+        // std::cout << "Mismatch hash: " << first.vertex
+        //           << " != " << second.vertex << std::endl;
         return false;
     }
 
@@ -179,6 +181,49 @@ bool CheckEquality(VertexState first, VertexState second,
     return is_correct;
 }
 
+std::random_device rd;
+std::mt19937 rng(rd());
+
+int SelectRandom(int first, int last) {
+    std::uniform_int_distribution<int> distrib(first, last);
+    return distrib(rng);
+}
+
+std::pair<Tree, Tree> GenerateRandomTrees(int tree_size) {
+    // const int kRandomSeed = 667;
+    std::random_device rd;
+    std::mt19937 generator(rd());
+    std::uniform_int_distribution<int>(0, tree_size - 1);
+
+    std::vector<int> parent(tree_size, -1);
+    for (int index = 1; index < tree_size; ++index) {
+        parent[index] = SelectRandom(0, index - 1);
+    }
+
+    std::vector<int> permutation(tree_size, 0);
+    for (int index = 0; index < tree_size; ++index) {
+        permutation[index] = index;
+    }
+    std::shuffle(permutation.begin(), permutation.end(), rng);
+
+    Tree first_tree(tree_size);
+    Tree second_tree(tree_size);
+
+    for (int index = 1; index < tree_size; ++index) {
+        int from = parent[index];
+        int to = index;
+
+        first_tree.AddEdge({from, to});
+        second_tree.AddEdge({permutation[from], permutation[to]});
+    }
+
+    return std::make_pair(first_tree, second_tree);
+}
+
+bool StressTest(int tree_size);
+
+std::vector<Tree> different_trees;
+
 int main() {
     freopen("input.txt", "r", stdin);
     freopen("output.txt", "w", stdout);
@@ -186,53 +231,28 @@ int main() {
     int tree_size;
     std::cin >> tree_size;
 
-    const int kRandomSeed = 668;
+    const int kEpochCount = 100;
 
-    std::vector<int> permutation(tree_size, kRandomSeed);
-    for (int index = 0; index < tree_size; ++index) {
-        permutation[index] = index;
+    int correct = 0;
+    for (int epoch = 0; epoch < kEpochCount; ++epoch) {
+        correct += (StressTest(tree_size) ? 1 : 0);
     }
 
-    std::mt19937 generator(kRandomSeed);
-    std::shuffle(permutation.begin(), permutation.end(), generator);
-
-    std::cout << "permutation: " << std::endl;
-    for (int index = 0; index < tree_size; ++index) {
-        std::cout << permutation[index] << ' ';
-    }
-    std::cout << std::endl;
-
-    Tree first_tree(tree_size);
-    Tree second_tree(tree_size);
-    for (int index = 0; index < tree_size - 1; ++index) {
-        int from;
-        int to;
-        std::cin >> from >> to;
-        --from;
-        --to;
-        first_tree.AddEdge({from, to});
-
-        second_tree.AddEdge({permutation[from], permutation[to]});
-    }
-
-    // for (int index = 0; index < tree_size - 1; ++index) {
-    //     int from;
-    //     int to;
-    //     std::cin >> from >> to;
-    //     --from;
-    //     --to;
-
-    //     std::cout << from << " => " << permutation[from] << std::endl;
-    //     std::cout << to << " => " << permutation[to] << std::endl;
-
-    //     from = permutation[from];
-    //     to = permutation[to];
-    //     second_tree.AddEdge({from, to});
+    std::cout << correct << " correct out of " << kEpochCount << std::endl;
+    // std::cout << "different trees: " << different_trees.size() << std::endl;
+    // for (auto tree : different_trees) {
+    //     tree.PrintEdges();
     // }
+}
 
-    first_tree.PrintEdges();
+bool StressTest(int tree_size) {
+    auto forest = GenerateRandomTrees(tree_size);
 
-    second_tree.PrintEdges();
+    auto first_tree = forest.first;
+    auto second_tree = forest.second;
+
+    // different_trees.push_back(first_tree);
+    // different_trees.push_back(second_tree);
 
     first_tree.CalculateSubtreeSizes();
     second_tree.CalculateSubtreeSizes();
@@ -240,42 +260,24 @@ int main() {
     std::vector<int> first_tree_centroids = first_tree.FindCentroids();
     std::vector<int> second_tree_centroids = second_tree.FindCentroids();
 
-    std::cout << "First Tree centroids" << std::endl;
-    for (auto x : first_tree_centroids) {
-        std::cout << x << ' ';
+    for (auto first_centroid : first_tree_centroids) {
+        for (auto second_centroid : second_tree_centroids) {
+            std::vector<int64_t> first_tree_hashs =
+                first_tree.CalculateSubtreeHashs(first_centroid);
+            std::vector<int64_t> second_tree_hashs =
+                second_tree.CalculateSubtreeHashs(second_centroid);
+
+            std::vector<int> vertex_bijection(tree_size, -1);
+            bool ok = CheckEquality({first_centroid, -1, first_tree},
+                                    {second_centroid, -1, second_tree},
+                                    first_tree_hashs, second_tree_hashs,
+                                    vertex_bijection);
+
+            if (ok) {
+                return true;
+            }
+        }
     }
-    std::cout << std::endl;
 
-    std::cout << "Second Tree centroids" << std::endl;
-    for (auto x : second_tree_centroids) {
-        std::cout << x << ' ';
-    }
-    std::cout << std::endl;
-
-    std::vector<int64_t> first_tree_hashs = first_tree.CalculateSubtreeHashs(2);
-    std::vector<int64_t> second_tree_hashs =
-        second_tree.CalculateSubtreeHashs(0);
-
-    std::cout << "first_tree_hashs" << std::endl;
-    for (int index = 0; index < first_tree_hashs.size(); ++index) {
-        std::cout << index << ": " << first_tree_hashs[index] << std::endl;
-    }
-    std::cout << std::endl;
-
-    std::cout << "second_tree_hashs" << std::endl;
-    for (int index = 0; index < second_tree_hashs.size(); ++index) {
-        std::cout << index << ": " << second_tree_hashs[index] << std::endl;
-    }
-    std::cout << std::endl;
-
-    std::vector<int> vertex_bijection(tree_size, -1);
-    bool ok =
-        CheckEquality({2, -1, first_tree}, {0, -1, second_tree},
-                      first_tree_hashs, second_tree_hashs, vertex_bijection);
-
-    std::cout << (ok ? "Correct" : "Not correct") << std::endl;
-    std::cout << "bijection: " << std::endl;
-    for (int index = 0; index < tree_size; ++index) {
-        std::cout << index << " -> " << vertex_bijection[index] << std::endl;
-    }
+    return false;
 }
