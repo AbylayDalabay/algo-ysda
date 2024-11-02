@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cassert>
 #include <iostream>
 #include <list>
 #include <queue>
@@ -17,7 +19,17 @@ struct MemoryBlock {
         }
         return first_index > other.first_index;
     }
+
+    bool operator==(const MemoryBlock& other) const {
+        return size == other.size && first_index == other.first_index;
+    }
 };
+
+std::ostream& operator<<(std::ostream& os, const MemoryBlock& memory_block) {
+    os << "[" << memory_block.first_index << ", " << memory_block.size << ", "
+       << (memory_block.is_allocated ? "alloc" : "not alloc") << "]";
+    return os;
+}
 
 template <typename Iterator>
 struct CompareIterators {
@@ -41,31 +53,27 @@ int main() {
     MaxHeapIterator<MemoryBlockIterator> max_heap;
     max_heap.push(memory_blocks.begin());
 
-    std::cout << "start" << " query_index list state" << std::endl;
+    std::vector<MemoryBlockIterator> allocations;
+    allocations.assign(query_count, memory_blocks.end());
+
+    std::cout << "Initial state" << std::endl;
     for (const MemoryBlock& memory_block : memory_blocks) {
-        std::cout << "[" << memory_block.first_index << ", "
-                  << memory_block.size << ", "
-                  << (memory_block.is_allocated ? "alloc" : "not alloc")
-                  << "]-";
+        std::cout << memory_block << "-";
     }
-    std::cout << std::endl << std::endl;
+    std::cout << std::endl;
 
     for (int query_index = 0; query_index < query_count; ++query_index) {
+        std::cout << "Test case: #" << query_index << std::endl;
         int value;
         std::cin >> value;
 
         if (value > 0) {
-            std::cout << "Trying to allocate " << value << " memory"
+            std::cout << "Starting to allocate " << value << " memory"
                       << std::endl;
+
             // allocate memory using heap
-            std::cout << "Heap size" << max_heap.size() << std::endl;
             MemoryBlockIterator memory_block_it = max_heap.top();
             max_heap.pop();
-            std::cout << "Heap size" << max_heap.size() << std::endl;
-
-            std::cout << "Getted from heap: " << "["
-                      << memory_block_it->first_index << ", "
-                      << memory_block_it->size << "]" << std::endl;
 
             if (memory_block_it->size >= value) {
                 // allocate first blocks
@@ -75,38 +83,64 @@ int main() {
                 MemoryBlock new_block(value, first_index, true);
                 MemoryBlockIterator new_block_it =
                     memory_blocks.insert(memory_block_it, new_block);
-                // max_heap.push(new_block_it);
+                allocations[query_index] = new_block_it;
 
                 memory_block_it->first_index = first_index + value;
                 memory_block_it->size = size - value;
 
-                std::cout << "After crop memory_block: " << "["
-                          << memory_block_it->first_index << ", "
-                          << memory_block_it->size << "]" << std::endl;
-
                 if (memory_block_it->size == 0) {
                     memory_blocks.erase(memory_block_it);
                 } else {
-                    std::cout << "cropped pushed to the heap" << std::endl;
+                    std::cout << "Pushed to the heap: " << *memory_block_it
+                              << std::endl;
                     max_heap.push(memory_block_it);
                 }
-                std::cout << "succesfully allocated" << std::endl;
+                std::cout << "allocated" << std::endl;
+                std::cout << "answer: " << new_block.first_index << std::endl;
             } else {
                 std::cout << "not enough memory" << std::endl;
+                std::cout << "answer: " << -1 << std::endl;
             }
         } else {
             // decline allocation
-            std::cout << "Not allocation query" << std::endl;
+            std::cout << "Free memory query" << std::endl;
+            int allocation_index = -value;
+            --allocation_index;
+
+            MemoryBlockIterator memory_block_it = allocations[allocation_index];
+
+            if (memory_block_it == memory_blocks.end()) {
+                assert(!memory_block_it->is_allocated);
+                std::cout << "not allocated memory, unable to free"
+                          << std::endl;
+            } else {
+                std::cout << "Starting to delete" << std::endl;
+                std::cout << "Want to delete this memory: " << *memory_block_it
+                          << std::endl;
+
+                assert(memory_block_it->is_allocated);
+                memory_block_it->is_allocated = false;
+
+                std::cout << "Heap size before deletion: " << max_heap.size()
+                          << std::endl;
+                MaxHeapIterator<MemoryBlockIterator> max_heap_copy;
+                while (!max_heap.empty()) {
+                    MemoryBlockIterator top = max_heap.top();
+                    max_heap.pop();
+                    if (top != memory_block_it) {
+                        std::cout << "Found and deleted from heap" << std::endl;
+                        max_heap_copy.push(top);
+                    }
+                }
+                max_heap = std::move(max_heap_copy);
+                std::cout << "Heap size after deletion: " << max_heap.size()
+                          << std::endl;
+            }
         }
-        std::cout << query_index << " query_index list state" << std::endl;
         for (const MemoryBlock& memory_block : memory_blocks) {
-            std::cout << "[" << memory_block.first_index << ", "
-                      << memory_block.size << ", "
-                      << (memory_block.is_allocated ? "alloc" : "not alloc")
-                      << "]-";
+            std::cout << memory_block << "-";
         }
         std::cout << std::endl;
-        std::cout << "Heap size" << max_heap.size() << std::endl;
-        std::cout << std::endl;
+        std::cout << "___________________________________________" << std::endl;
     }
 }
