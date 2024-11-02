@@ -52,6 +52,7 @@ int main() {
 
     MaxHeapIterator<MemoryBlockIterator> max_heap;
     max_heap.push(memory_blocks.begin());
+    std::cout << "Pushed to the heap: " << *memory_blocks.begin() << std::endl;
 
     std::vector<MemoryBlockIterator> allocations;
     allocations.assign(query_count, memory_blocks.end());
@@ -63,7 +64,7 @@ int main() {
     std::cout << std::endl;
 
     for (int query_index = 0; query_index < query_count; ++query_index) {
-        std::cout << "Test case: #" << query_index << std::endl;
+        std::cout << "Test case: #" << query_index + 1 << std::endl;
         int value;
         std::cin >> value;
 
@@ -75,6 +76,8 @@ int main() {
             MemoryBlockIterator memory_block_it = max_heap.top();
             max_heap.pop();
 
+            std::cout << "Heap top memory: " << *memory_block_it << std::endl;
+
             if (memory_block_it->size >= value) {
                 // allocate first blocks
                 int size = memory_block_it->size;
@@ -83,17 +86,24 @@ int main() {
                 MemoryBlock new_block(value, first_index, true);
                 MemoryBlockIterator new_block_it =
                     memory_blocks.insert(memory_block_it, new_block);
+
+                assert(new_block_it != memory_blocks.end());
                 allocations[query_index] = new_block_it;
+                std::cout << "Equalled allocation: " << *new_block_it
+                          << std::endl;
 
                 memory_block_it->first_index = first_index + value;
                 memory_block_it->size = size - value;
 
                 if (memory_block_it->size == 0) {
+                    std::cout << "Deleted because empty: " << *memory_block_it << std::endl;
                     memory_blocks.erase(memory_block_it);
                 } else {
                     std::cout << "Pushed to the heap: " << *memory_block_it
                               << std::endl;
                     max_heap.push(memory_block_it);
+                    std::cout << "Pushed to the heap: " << *memory_block_it
+                              << std::endl;
                 }
                 std::cout << "allocated" << std::endl;
                 std::cout << "answer: " << new_block.first_index << std::endl;
@@ -104,13 +114,24 @@ int main() {
         } else {
             // decline allocation
             std::cout << "Free memory query" << std::endl;
+            std::cout << "Allocations history: " << std::endl;
+            for (int index = 0; index <= query_index; ++index) {
+                std::cout << "index: " << index << ": ";
+                if (allocations[index] == memory_blocks.end()) {
+                    std::cout << "Hui" << std::endl;
+                } else {
+                    std::cout << *allocations[index] << std::endl;
+                }
+            }
+            std::cout << std::endl;
+
             int allocation_index = -value;
             --allocation_index;
 
             MemoryBlockIterator memory_block_it = allocations[allocation_index];
 
             if (memory_block_it == memory_blocks.end()) {
-                assert(!memory_block_it->is_allocated);
+                // assert(!memory_block_it->is_allocated);
                 std::cout << "not allocated memory, unable to free"
                           << std::endl;
             } else {
@@ -128,11 +149,15 @@ int main() {
                     MemoryBlockIterator top = max_heap.top();
                     max_heap.pop();
                     if (top != memory_block_it) {
-                        std::cout << "Found and deleted from heap" << std::endl;
                         max_heap_copy.push(top);
+                        std::cout << "Pushed to the heap: " << *top
+                                  << std::endl;
+                    } else {
+                        std::cout << "Found and deleted from heap: ";
+                        std::cout << *top << std::endl;
                     }
                 }
-                max_heap = std::move(max_heap_copy);
+                max_heap = max_heap_copy;
                 std::cout << "Heap size after deletion: " << max_heap.size()
                           << std::endl;
             }
