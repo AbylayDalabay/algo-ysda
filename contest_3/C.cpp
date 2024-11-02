@@ -41,6 +41,15 @@ int main() {
     MaxHeapIterator<MemoryBlockIterator> max_heap;
     max_heap.push(memory_blocks.begin());
 
+    std::cout << "start" << " query_index list state" << std::endl;
+    for (const MemoryBlock& memory_block : memory_blocks) {
+        std::cout << "[" << memory_block.first_index << ", "
+                  << memory_block.size << ", "
+                  << (memory_block.is_allocated ? "alloc" : "not alloc")
+                  << "]-";
+    }
+    std::cout << std::endl << std::endl;
+
     for (int query_index = 0; query_index < query_count; ++query_index) {
         int value;
         std::cin >> value;
@@ -49,8 +58,14 @@ int main() {
             std::cout << "Trying to allocate " << value << " memory"
                       << std::endl;
             // allocate memory using heap
+            std::cout << "Heap size" << max_heap.size() << std::endl;
             MemoryBlockIterator memory_block_it = max_heap.top();
             max_heap.pop();
+            std::cout << "Heap size" << max_heap.size() << std::endl;
+
+            std::cout << "Getted from heap: " << "["
+                      << memory_block_it->first_index << ", "
+                      << memory_block_it->size << "]" << std::endl;
 
             if (memory_block_it->size >= value) {
                 // allocate first blocks
@@ -60,14 +75,19 @@ int main() {
                 MemoryBlock new_block(value, first_index, true);
                 MemoryBlockIterator new_block_it =
                     memory_blocks.insert(memory_block_it, new_block);
-                max_heap.push(new_block_it);
+                // max_heap.push(new_block_it);
 
                 memory_block_it->first_index = first_index + value;
                 memory_block_it->size = size - value;
 
+                std::cout << "After crop memory_block: " << "["
+                          << memory_block_it->first_index << ", "
+                          << memory_block_it->size << "]" << std::endl;
+
                 if (memory_block_it->size == 0) {
                     memory_blocks.erase(memory_block_it);
                 } else {
+                    std::cout << "cropped pushed to the heap" << std::endl;
                     max_heap.push(memory_block_it);
                 }
                 std::cout << "succesfully allocated" << std::endl;
@@ -76,7 +96,7 @@ int main() {
             }
         } else {
             // decline allocation
-            std::cout << "declined allocation" << std::endl;
+            std::cout << "Not allocation query" << std::endl;
         }
         std::cout << query_index << " query_index list state" << std::endl;
         for (const MemoryBlock& memory_block : memory_blocks) {
@@ -85,6 +105,8 @@ int main() {
                       << (memory_block.is_allocated ? "alloc" : "not alloc")
                       << "]-";
         }
-        std::cout << std::endl << std::endl;
+        std::cout << std::endl;
+        std::cout << "Heap size" << max_heap.size() << std::endl;
+        std::cout << std::endl;
     }
 }
