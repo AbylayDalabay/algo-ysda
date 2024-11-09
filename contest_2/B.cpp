@@ -36,6 +36,8 @@ struct PlayersTeam {
     Iterator last;
 };
 
+namespace CustomSort {
+
 template <typename Iterator, typename Generator>
 Iterator SelectPivot(Iterator first, Iterator last, Generator generator) {
     size_t distance = std::distance(first, last);
@@ -52,7 +54,7 @@ Iterator Partition(Iterator first, Iterator last, Predicate pred) {
 
     for (Iterator current_it = first; current_it != last; ++current_it) {
         if (pred(*current_it)) {
-            std::swap(*split_it, *current_it);
+            std::iter_swap(split_it, current_it);
             ++split_it;
         }
     }
@@ -62,7 +64,7 @@ Iterator Partition(Iterator first, Iterator last, Predicate pred) {
 
 template <typename Iterator, typename Comparator, typename Generator>
 void QuickSort(Iterator first, Iterator last, Comparator comparator,
-               Generator generator) {
+               const Generator& generator) {
     if (std::distance(first, last) <= 1) {
         return;
     }
@@ -79,8 +81,8 @@ void QuickSort(Iterator first, Iterator last, Comparator comparator,
             return !comparator(kPivot, elem);
         });
 
-    QuickSort(first, kEqualIterator, comparator);
-    QuickSort(kGreaterIterator, last, comparator);
+    QuickSort(first, kEqualIterator, comparator, generator);
+    QuickSort(kGreaterIterator, last, comparator, generator);
 }
 
 template <typename Iterator, typename Comparator>
@@ -91,11 +93,17 @@ void QuickSort(Iterator first, Iterator last, Comparator comparator) {
     QuickSort(first, last, comparator, random_generator);
 }
 
+}  // namespace CustomSort
+
 std::vector<Player> BuildMostEffectiveSolidaryTeam(
     std::vector<Player> players) {
+    if (players.size() <= 2) {
+        return players;
+    }
     using Iterator = std::vector<Player>::iterator;
 
-    QuickSort(players.begin(), players.end(), Player::CompByEfficiency);
+    CustomSort::QuickSort(players.begin(), players.end(),
+                          Player::CompByEfficiency);
 
     int64_t best_summary_effectiveness = 0;
     int64_t current_summary_effectiveness = 0;
@@ -108,16 +116,14 @@ std::vector<Player> BuildMostEffectiveSolidaryTeam(
     current_team.first = players.begin();
 
     auto is_solidary_segment = [](Iterator first, Iterator last) -> bool {
-        if (std::distance(first, last) <= 1) {
-            return true;
-        }
         return first->efficiency + std::next(first)->efficiency >=
-               last->efficiency;
+               std::prev(last)->efficiency;
     };
 
-    for (current_team.last = players.begin();
-         current_team.last != players.end(); ++current_team.last) {
-        current_summary_effectiveness += current_team.last->efficiency;
+    for (current_team.last = std::next(players.begin());
+         current_team.last != std::next(players.end()); ++current_team.last) {
+        current_summary_effectiveness +=
+            std::prev(current_team.last)->efficiency;
 
         while (current_team.first != current_team.last &&
                !is_solidary_segment(current_team.first, current_team.last)) {
@@ -128,7 +134,7 @@ std::vector<Player> BuildMostEffectiveSolidaryTeam(
         if (current_summary_effectiveness > best_summary_effectiveness) {
             best_summary_effectiveness = current_summary_effectiveness;
             best_team.first = current_team.first;
-            best_team.last = std::next(current_team.last);
+            best_team.last = current_team.last;
         }
     }
 
@@ -145,8 +151,9 @@ int64_t SummaryEfficiency(const std::vector<Player>& players) {
     return summary_efficiency;
 }
 
-std::ostream& OutputVector(const std::vector<Player>& players,
-                           std::ostream& os = std::cout) {
+std::ostream& PrintTeam(std::vector<Player> players,
+                        std::ostream& os = std::cout) {
+    CustomSort::QuickSort(players.begin(), players.end(), Player::CompByIndex);
     os << SummaryEfficiency(players) << std::endl;
     for (const Player& player : players) {
         os << player.index << ' ';
@@ -159,9 +166,7 @@ int main() {
 
     auto best_team = BuildMostEffectiveSolidaryTeam(players);
 
-    QuickSort(best_team.begin(), best_team.end(), Player::CompByIndex);
-
-    OutputVector(best_team);
+    PrintTeam(best_team);
 
     return 0;
 }
