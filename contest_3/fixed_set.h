@@ -1,153 +1,173 @@
+#include <atomic>
 #include <cassert>
 #include <cstdint>
-#include <functional>
-#include <iostream>
-#include <limits>
+#include <numeric>
 #include <optional>
 #include <random>
-#include <vector>
 
 const int kRandomSeed = 667;
 static std::mt19937_64 random_generator(kRandomSeed);
+const int64_t kPrimeMod = 87'178'291'199;
+
+class LinearHashFunction {
+private:
+    int64_t slope_;
+    int64_t intercept_;
+    int64_t mod_prime_;
+
+public:
+    LinearHashFunction() {}
+    LinearHashFunction(int64_t slope, int64_t intercept, int64_t mod_prime)
+        : slope_(slope), intercept_(intercept), mod_prime_(mod_prime) {
+        slope_ %= mod_prime_;
+        intercept_ %= mod_prime_;
+    }
+
+    int64_t operator()(int64_t x_value) const {
+        int64_t hash_value = slope_ * x_value + intercept_;
+        hash_value %= mod_prime_;
+        if (hash_value < 0) {
+            hash_value += mod_prime_;
+        }
+        return hash_value;
+    }
+};
+
+int64_t SelectRandom(int64_t first, int64_t last) {
+    std::uniform_int_distribution<int64_t> distrib(first, last - 1);
+
+    return distrib(random_generator);
+}
+
+LinearHashFunction GenerateRandomLinearHashFunction() {
+    int64_t a_value = SelectRandom(0, kPrimeMod);
+    int64_t b_value = SelectRandom(0, kPrimeMod);
+
+    return LinearHashFunction(a_value, b_value, kPrimeMod);
+}
+
+template <typename Predicate>
+LinearHashFunction GenerateFunctionWithPredicate(Predicate pred) {
+    LinearHashFunction current_hash_function;
+    do {
+        current_hash_function = GenerateRandomLinearHashFunction();
+    } while (!pred(current_hash_function));
+    return current_hash_function;
+}
+
+std::vector<int64_t> CountBucketSizes(const std::vector<int>& elements,
+                                      const LinearHashFunction& hash_function,
+                                      int64_t hash_table_size) {
+    std::vector<int64_t> bucket_sizes(hash_table_size, 0);
+    for (auto element : elements) {
+        int64_t hash_value = hash_function(element);
+        hash_value %= hash_table_size;
+        ++bucket_sizes[hash_value];
+    }
+    return bucket_sizes;
+}
+
+std::vector<std::vector<int>> DivideIntoBuckets(
+    const std::vector<int>& elements, const LinearHashFunction& hash_function,
+    int64_t hash_table_size) {
+    std::vector<std::vector<int>> buckets(hash_table_size);
+    for (auto element : elements) {
+        int64_t hash_value = hash_function(element);
+        hash_value %= hash_table_size;
+        buckets[hash_value].push_back(element);
+    }
+    return buckets;
+}
+
+int64_t SumOfSquares(const std::vector<int64_t>& array) {
+    int64_t sum =
+        std::accumulate(array.begin(), array.end(), static_cast<int64_t>(0),
+                        [](int64_t sum, int64_t current_value) {
+                            return sum + current_value * current_value;
+                        });
+    return sum;
+}
+
+class BucketHashTable {
+private:
+    std::optional<LinearHashFunction> hash_function_;
+    std::vector<std::optional<int>> hash_table_;
+    int64_t hash_table_size_;
+
+public:
+    BucketHashTable() {}
+    void Initialize(const std::vector<int>& elements) {
+        if (elements.empty()) {
+            return;
+        }
+        int64_t size = elements.size();
+        hash_table_size_ = size * size;
+
+        auto predicate = [&](LinearHashFunction hash_function) -> bool {
+            std::vector<int64_t> bucket_sizes =
+                CountBucketSizes(elements, hash_function, hash_table_size_);
+            int64_t square_sum_buckets = SumOfSquares(bucket_sizes);
+            return square_sum_buckets == size;
+        };
+
+        hash_function_ = GenerateFunctionWithPredicate(predicate);
+        hash_table_.assign(hash_table_size_, std::nullopt);
+        for (auto element : elements) {
+            int64_t hash_value = hash_function_.value()(element);
+            hash_value %= hash_table_size_;
+            hash_table_[hash_value] = element;
+        }
+    }
+    bool Contains(int value) const {
+        if (!hash_function_.has_value()) {
+            return false;
+        }
+        int64_t hash_value = hash_function_.value()(value);
+        hash_value %= hash_table_size_;
+        return hash_table_[hash_value] == value;
+    }
+};
 
 class FixedSet {
 private:
-    int size_;
-
-    using OptionalFunction = std::optional<std::function<int64_t(int)>>;
-
-    OptionalFunction main_hash_func_;
-    std::vector<OptionalFunction> bucket_hash_func_;
-
-    std::vector<std::vector<std::optional<int>>> bucket_hash_table_;
-
-    static const int64_t kInf = std::numeric_limits<int64_t>::max();
-    static const int64_t kPrimeMod = 87'178'291'199;
-    static const int kCoefCollision = 7;
+    static const int64_t kCoef = 10;
+    int64_t hash_table_size_ = 0;
+    std::optional<LinearHashFunction> hash_function_;
+    std::vector<BucketHashTable> buckets_;
 
 public:
-    static int64_t CountCollisions(const std::vector<int>& array,
-                                   OptionalFunction current_hash_func,
-                                   int hash_table_size) {
-        if (!current_hash_func.has_value()) {
-            return kInf;
-        }
-        std::vector<int> collisions_size(hash_table_size, 0);
-        for (auto x : array) {
-            ++collisions_size[current_hash_func.value()(x)];
-        }
-
-        int64_t collisions_sum = 0;
-        for (auto x : collisions_size) {
-            collisions_sum += static_cast<int64_t>(x) * (x - 1) / 2;
-        }
-
-        return collisions_sum;
-    }
-
-    static int64_t SelectRandom() {
-        std::uniform_int_distribution<int64_t> distrib(0, kPrimeMod - 1);
-
-        return distrib(random_generator);
-    }
-
-    static OptionalFunction SelectPerfectHashFunc(const std::vector<int>& array,
-                                                  int hash_table_size,
-                                                  int64_t collision_limit) {
-        if (hash_table_size == 0) {
-            return std::nullopt;
-        }
-
-        int epoch_count = 0;
-        while (true) {
-            int64_t a_param = SelectRandom();
-            int64_t b_param = SelectRandom();
-
-            ++epoch_count;
-            assert(epoch_count <= 30);
-
-            std::function<int64_t(int)> current_hash_func =
-                [a_param = a_param, b_param = b_param, prime_mod = kPrimeMod,
-                 hash_table_size = hash_table_size](int value) -> int64_t {
-                auto hash_value =
-                    (static_cast<int64_t>(a_param) * value + b_param) %
-                    prime_mod;
-                if (hash_value < 0) {
-                    hash_value += prime_mod;
-                }
-                hash_value %= hash_table_size;
-                return hash_value;
-            };
-
-            auto col_sum =
-                CountCollisions(array, current_hash_func, hash_table_size);
-
-            if (col_sum <= collision_limit) {
-                return OptionalFunction(current_hash_func);
-            }
-        }
-    }
-
-    FixedSet() {}
-    void Initialize(const std::vector<int>& numbers) {
-        size_ = numbers.size();
-        main_hash_func_ =
-            SelectPerfectHashFunc(numbers, size_, kCoefCollision * size_);
-
-        if (!main_hash_func_.has_value()) {
+    void Initialize(const std::vector<int>& elements) {
+        if (elements.empty()) {
             return;
         }
+        hash_table_size_ = elements.size();
 
-        std::vector<std::vector<int>> buckets(size_);
-        for (auto x : numbers) {
-            int hash_value = main_hash_func_.value()(x);
-            buckets[hash_value].push_back(x);
-        }
+        auto predicate = [&](LinearHashFunction hash_function) -> bool {
+            std::vector<int64_t> bucket_sizes =
+                CountBucketSizes(elements, hash_function, hash_table_size_);
+            int64_t square_sum_buckets = SumOfSquares(bucket_sizes);
+            return square_sum_buckets <= kCoef * hash_table_size_;
+        };
 
-        bucket_hash_func_.assign(size_, std::nullopt);
-        bucket_hash_table_.resize(size_);
+        hash_function_ = GenerateFunctionWithPredicate(predicate);
 
-        for (int index = 0; index < size_; ++index) {
-            int current_bucket_size = buckets[index].size();
-            int64_t current_bucket_hash_table_size =
-                static_cast<int64_t>(current_bucket_size) * current_bucket_size;
+        std::vector<std::vector<int>> bucket_values = DivideIntoBuckets(
+            elements, hash_function_.value(), hash_table_size_);
 
-            bucket_hash_func_[index] = SelectPerfectHashFunc(
-                buckets[index], current_bucket_hash_table_size, 0);
-
-            if (!bucket_hash_func_[index].has_value()) {
-                continue;
-            }
-
-            bucket_hash_table_[index].assign(current_bucket_hash_table_size,
-                                             std::nullopt);
-
-            for (auto x : buckets[index]) {
-                int hash_value = bucket_hash_func_[index].value()(x);
-
-                bucket_hash_table_[index][hash_value] = x;
-            }
+        buckets_.resize(hash_table_size_);
+        for (int i = 0; i < hash_table_size_; ++i) {
+            buckets_[i].Initialize(bucket_values[i]);
         }
     }
-    bool Contains(int number) const {
-        if (!main_hash_func_.has_value()) {
+    bool Contains(int value) const {
+        if (!hash_function_.has_value()) {
             return false;
         }
+        int64_t hash_value = hash_function_.value()(value);
+        hash_value %= hash_table_size_;
 
-        int bucket_index = main_hash_func_.value()(number);
+        const BucketHashTable& current_bucket = buckets_[hash_value];
 
-        if (!bucket_hash_func_[bucket_index].has_value()) {
-            return false;
-        }
-
-        int index = bucket_hash_func_[bucket_index].value()(number);
-
-        auto found_value = bucket_hash_table_[bucket_index][index];
-
-        if (!found_value.has_value()) {
-            return false;
-        }
-
-        return found_value.value() == number;
+        return current_bucket.Contains(value);
     }
 };
