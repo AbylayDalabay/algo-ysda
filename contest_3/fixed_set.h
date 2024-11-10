@@ -5,10 +5,6 @@
 #include <optional>
 #include <random>
 
-const int kRandomSeed = 667;
-static std::mt19937_64 random_generator(kRandomSeed);
-const int64_t kPrimeMod = 87'178'291'199;
-
 class LinearHashFunction {
 private:
     int64_t slope_;
@@ -34,12 +30,16 @@ public:
 };
 
 int64_t SelectRandom(int64_t first, int64_t last) {
+    const int kRandomSeed = 667;
+    static std::mt19937_64 random_generator(kRandomSeed);
     std::uniform_int_distribution<int64_t> distrib(first, last - 1);
 
     return distrib(random_generator);
 }
 
 LinearHashFunction GenerateRandomLinearHashFunction() {
+    const int64_t kPrimeMod = 87'178'291'199;
+
     int64_t a_value = SelectRandom(0, kPrimeMod);
     int64_t b_value = SelectRandom(0, kPrimeMod);
 
@@ -98,6 +98,9 @@ public:
     BucketHashTable() {}
     void Initialize(const std::vector<int>& elements) {
         if (elements.empty()) {
+            hash_function_.reset();
+            hash_table_.clear();
+            hash_table_size_ = 0;
             return;
         }
         int64_t size = elements.size();
@@ -138,6 +141,9 @@ private:
 public:
     void Initialize(const std::vector<int>& elements) {
         if (elements.empty()) {
+            hash_table_size_ = 0;
+            hash_function_.reset();
+            buckets_.clear();
             return;
         }
         hash_table_size_ = elements.size();
