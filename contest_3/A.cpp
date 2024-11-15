@@ -129,8 +129,12 @@ void Magic() {
 void RunTests() {
     std::cerr << "Running tests...\n";
     Empty();
+    std::cout << "Empty correct" << std::endl;
     Simple();
+    std::cout << "Simple correct" << std::endl;
     RepeatInitialize();
+    std::cout << "govno reinit" << std::endl;
     Magic();
+    std::cout << "magic correct" << std::endl;
     std::cerr << "Tests are passed!\n";
 }
