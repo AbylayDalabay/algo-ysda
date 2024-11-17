@@ -12,11 +12,10 @@ private:
     int64_t mod_prime_;
 
 public:
-    LinearHashFunction() {}
     LinearHashFunction(int64_t slope, int64_t intercept, int64_t mod_prime)
         : slope_(slope), intercept_(intercept), mod_prime_(mod_prime) {
-        slope_ %= mod_prime_;
-        intercept_ %= mod_prime_;
+        assert(0 <= slope && slope < mod_prime);
+        assert(0 <= intercept && intercept < mod_prime);
     }
 
     int64_t operator()(int64_t x_value) const {
@@ -47,11 +46,12 @@ LinearHashFunction GenerateRandomLinearHashFunction() {
 }
 
 template <typename Predicate>
-LinearHashFunction GenerateFunctionWithPredicate(Predicate pred) {
-    LinearHashFunction current_hash_function;
+std::optional<LinearHashFunction> GenerateFunctionWithPredicate(
+    Predicate pred) {
+    std::optional<LinearHashFunction> current_hash_function;
     do {
         current_hash_function = GenerateRandomLinearHashFunction();
-    } while (!pred(current_hash_function));
+    } while (!pred(current_hash_function.value()));
     return current_hash_function;
 }
 
@@ -89,11 +89,6 @@ int64_t SumOfSquares(const std::vector<int64_t>& array) {
 }
 
 class BucketHashTable {
-private:
-    std::optional<LinearHashFunction> hash_function_;
-    std::vector<std::optional<int>> hash_table_;
-    int64_t hash_table_size_;
-
 public:
     BucketHashTable() {}
     void Initialize(const std::vector<int>& elements) {
@@ -129,15 +124,14 @@ public:
         hash_value %= hash_table_size_;
         return hash_table_[hash_value] == value;
     }
+
+private:
+    std::optional<LinearHashFunction> hash_function_;
+    std::vector<std::optional<int>> hash_table_;
+    int64_t hash_table_size_;
 };
 
 class FixedSet {
-private:
-    static const int64_t kCoef = 10;
-    int64_t hash_table_size_ = 0;
-    std::optional<LinearHashFunction> hash_function_;
-    std::vector<BucketHashTable> buckets_;
-
 public:
     void Initialize(const std::vector<int>& elements) {
         if (elements.empty()) {
@@ -156,7 +150,6 @@ public:
         };
 
         hash_function_ = GenerateFunctionWithPredicate(predicate);
-
         std::vector<std::vector<int>> bucket_values = DivideIntoBuckets(
             elements, hash_function_.value(), hash_table_size_);
 
@@ -176,4 +169,10 @@ public:
 
         return current_bucket.Contains(value);
     }
+
+private:
+    static const int64_t kCoef = 10;
+    int64_t hash_table_size_ = 0;
+    std::optional<LinearHashFunction> hash_function_;
+    std::vector<BucketHashTable> buckets_;
 };
