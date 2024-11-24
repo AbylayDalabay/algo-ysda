@@ -1,6 +1,5 @@
 #include <cassert>
-#include <cstddef>
-#include <ios>
+#include <cstdint>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -8,24 +7,14 @@
 #include <utility>
 #include <vector>
 
-template <typename T>
-void Display(const std::vector<std::vector<T>>& grid) {
-    for (size_t row_index = 0; row_index < grid.size(); ++row_index) {
-        for (size_t column_index = 0; column_index < grid[0].size();
-             ++column_index) {
-            std::cout << grid[row_index][column_index] << ' ';
-        }
-        std::cout << std::endl;
-    }
-    std::cout << std::endl;
-}
-
 class BiggestEqualSquares {
 private:
-    using HashType = uint64_t;
+    using HashType = int64_t;
 
-    static const HashType kRowPrime = 29;
+    static const HashType kRowPrime = 31;
     static const HashType kColumnPrime = 31;
+
+    static const HashType kMod = 1e9 + 7;
 
     struct Cell {
         int row;
@@ -45,13 +34,14 @@ private:
     void PrecalcPowers() {
         row_prime_powers_.assign(row_count_ + 1, 1);
         for (int power = 1; power <= row_count_; ++power) {
-            row_prime_powers_[power] = row_prime_powers_[power - 1] * kRowPrime;
+            row_prime_powers_[power] =
+                (row_prime_powers_[power - 1] * kRowPrime) % kMod;
         }
 
         column_prime_powers_.assign(column_count_ + 1, 1);
         for (int power = 1; power <= column_count_; ++power) {
             column_prime_powers_[power] =
-                column_prime_powers_[power - 1] * kColumnPrime;
+                (column_prime_powers_[power - 1] * kColumnPrime) % kMod;
         }
     }
 
@@ -61,9 +51,11 @@ private:
             for (int column_index = 0; column_index < column_count_;
                  ++column_index) {
                 hash_[row_index][column_index] =
-                    grid_[row_index][column_index] *
-                    row_prime_powers_[row_index] *
-                    column_prime_powers_[column_index];
+                    (((grid_[row_index][column_index] *
+                       row_prime_powers_[row_index]) %
+                      kMod) *
+                     column_prime_powers_[column_index]) %
+                    kMod;
             }
         }
     }
@@ -84,7 +76,8 @@ private:
                     prefix_sum_hash_[row_index - 1][column_index - 1];
                 current_prefix_sum += hash_[row_index - 1][column_index - 1];
 
-                prefix_sum_hash_[row_index][column_index] = current_prefix_sum;
+                prefix_sum_hash_[row_index][column_index] =
+                    (current_prefix_sum % kMod + kMod) % kMod;
             }
         }
     }
@@ -96,15 +89,7 @@ private:
         answer -= prefix_sum_hash_[down.row + 1][up.column];
         answer += prefix_sum_hash_[up.row][up.column];
 
-        HashType check_answer = 0;
-        for (int row_index = up.row; row_index <= down.row; ++row_index) {
-            for (int column_index = up.column; column_index <= down.column;
-                 ++column_index) {
-                check_answer += hash_[row_index][column_index];
-            }
-        }
-        assert(check_answer == answer);
-        return answer;
+        return (answer % kMod + kMod) % kMod;
     }
 
     bool IsEqualRectangles(const Cell& first, const Cell& second,
@@ -147,7 +132,7 @@ private:
         HashType row_mult = row_prime_powers_[row_count_ - cell.row];
         HashType column_mult =
             column_prime_powers_[column_count_ - cell.column];
-        return row_mult * column_mult;
+        return (row_mult * column_mult) % kMod;
     }
 
     std::optional<std::pair<Cell, Cell>> FindEqualSquares(int side_length) {
@@ -168,19 +153,13 @@ private:
                 current_rectangle_hash *=
                     NormalizeCellHashMultilplier(start_cell);
 
+                current_rectangle_hash %= kMod;
+
                 collisions[current_rectangle_hash].push_back(start_cell);
             }
         }
 
         for (const auto& current_hash_rectangles : collisions) {
-            // std::cout << "current_hash_value: " <<
-            // current_hash_rectangles.first
-            //           << std::endl;
-            // std::cout << "list of cells for hash value: " << std::endl;
-            // for (const auto& cell : current_hash_rectangles.second) {
-            //     std::cout << "{" << cell.row << ", " << cell.column << "} - "
-            //               << std::endl;
-            // }
             if (current_hash_rectangles.second.size() > 1) {
                 std::optional<std::pair<Cell, Cell>> equal_squares =
                     CheckGoodCollisions(current_hash_rectangles.second,
@@ -208,21 +187,14 @@ public:
                     grid[row_index][column_index] - 'a';
             }
         }
-
-        std::cout << "grid_" << std::endl;
-        Display(grid_);
     }
 
     void InitializePrecalc() {
         PrecalcPowers();
 
         PrecalcHashes();
-        // std::cout << "hashes: " << std::endl;
-        // Display(hash_);
 
         PrecalcPrefixSums();
-        // std::cout << "Prefix sums" << std::endl;
-        // Display(prefix_sum_hash_);
     }
 
     void CalcAnswer() {
@@ -245,7 +217,6 @@ public:
             }
         }
 
-        std::cout << std::boolalpha << equal_squares.has_value() << std::endl;
         if (equal_squares.has_value()) {
             std::cout << best_bound << std::endl;
             Cell first_cell = equal_squares.value().first;
