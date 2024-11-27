@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 #include <ostream>
 #include <vector>
 
@@ -24,21 +25,8 @@ SubSet operator+(const SubSet& lhs, const SubSet& rhs) {
             (lhs.mask | rhs.mask)};
 }
 
-std::ostream& operator<<(std::ostream& os, const SubSet& subset) {
-    os << "{" << subset.weight << ", " << subset.cost << ", " << subset.mask
-       << "} - ";
-    return os;
-}
-
-template <typename T>
-void Print(const std::vector<T>& array) {
-    for (const auto& x : array) {
-        std::cout << x << std::endl;
-    }
-}
-
-const int64_t kMax = 1e18;
-const int64_t kMin = -1e18;
+const int64_t kMax = std::numeric_limits<int64_t>::max();
+const int64_t kMin = std::numeric_limits<int64_t>::min();
 constexpr SubSet kMinSubset = {kMax, kMin, 0};
 
 template <typename T>
@@ -112,10 +100,10 @@ private:
     static std::vector<SubSet> GetMasks(std::vector<SubSet>&& array) {
         std::vector<SubSet> masks;
         int size = array.size();
-        for (int mask = 0; mask < (1 << size); ++mask) {
+        for (int mask = 0; mask < (1LL << size); ++mask) {
             SubSet current_subset = {0, 0, 0};
             for (int current_bit = 0; current_bit < size; ++current_bit) {
-                if ((mask & (1 << current_bit)) > 0) {
+                if ((mask & (1LL << current_bit)) > 0) {
                     current_subset += array[current_bit];
                 }
             }
@@ -166,26 +154,10 @@ public:
         for (int index = 0; index < size_; ++index) {
             std::cin >> array_[index].weight;
             std::cin >> array_[index].cost;
-            array_[index].mask = (1 << index);
+            array_[index].mask = (1LL << index);
         }
     }
-    SubSet StressSolve() {
-        SubSet answer = kMinSubset;
-        for (int mask = 0; mask < (1 << size_); ++mask) {
-            SubSet current_subset = {0, 0, 0};
-            for (int current_bit = 0; current_bit < size_; ++current_bit) {
-                if ((mask & (1 << current_bit)) > 0) {
-                    current_subset += array_[current_bit];
-                }
-            }
-            if (current_subset.weight >= min_weight_ &&
-                current_subset.weight <= max_weight_) {
-                answer = std::max(answer, current_subset);
-            }
-        }
-        return answer;
-    }
-    SubSet Solve() {
+    void Solve() {
         int mid_index = size_ / 2;
         auto mid_iterator = array_.begin() + mid_index;
 
@@ -193,11 +165,9 @@ public:
             GetMasks(std::vector(array_.begin(), mid_iterator));
         std::vector<SubSet> right_masks =
             GetMasks(std::vector(mid_iterator, array_.end()));
-
         auto compare_by_weight = [](const SubSet& lhs, const SubSet& rhs) {
             return lhs.weight < rhs.weight;
         };
-
         sort(left_masks.begin(), left_masks.end(), compare_by_weight);
         sort(right_masks.begin(), right_masks.end(), compare_by_weight);
 
@@ -218,36 +188,40 @@ public:
 
             if (left_index != -1 && right_index != -1 &&
                 left_index <= right_index) {
-                for (int index = left_index; index <= right_index; ++index) {
-                    assert(right_masks[index].weight >= left_bound);
-                    assert(right_masks[index].weight <= right_bound);
-                }
-
                 SubSet max_right_subset =
                     seg_tree.GetMax(left_index, right_index);
-                SubSet current_res = left_mask + max_right_subset;
+                if (max_right_subset.weight != kMinSubset.weight &&
+                    (left_mask.mask + max_right_subset.mask > 0)) {
+                    SubSet current_res = left_mask + max_right_subset;
 
-                assert(current_res.weight >= min_weight_);
-                assert(current_res.weight <= max_weight_);
-
-                answer = std::max(answer, current_res);
+                    answer = std::max(answer, current_res);
+                }
             }
         }
 
-        std::cout << __builtin_popcount(answer.mask) << std::endl;
+        int count = 0;
         for (int current_bit = 0; current_bit < size_; ++current_bit) {
-            if ((answer.mask & (1 << current_bit)) > 0) {
+            if ((answer.mask & (1LL << current_bit)) > 0) {
+                ++count;
+            }
+        }
+        if (count == 0) {
+            std::cout << 0 << std::endl;
+            return;
+        }
+
+        std::cout << count << std::endl;
+        for (int current_bit = 0; current_bit < size_; ++current_bit) {
+            if ((answer.mask & (1LL << current_bit)) > 0) {
                 std::cout << current_bit + 1 << ' ';
             }
         }
         std::cout << std::endl;
-
-        return answer;
     }
 };
 
 int main() {
     Solution kotak;
     kotak.Input();
-    auto solve = kotak.Solve();
+    kotak.Solve();
 }
