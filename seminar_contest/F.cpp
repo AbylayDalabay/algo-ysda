@@ -2,7 +2,6 @@
 #include <cassert>
 #include <cstdint>
 #include <iostream>
-#include <limits>
 #include <ostream>
 #include <random>
 #include <vector>
@@ -20,8 +19,13 @@ struct SubSet {
     bool operator!=(const SubSet& other) const { return !(*this == other); }
 };
 
-const int64_t kMax = std::numeric_limits<int64_t>::max();
-const int64_t kMin = std::numeric_limits<int64_t>::min();
+SubSet operator+(const SubSet& lhs, const SubSet& rhs) {
+    return {lhs.weight + rhs.weight, lhs.cost + rhs.cost,
+            (lhs.mask | rhs.mask)};
+}
+
+const int64_t kMax = 1e18;
+const int64_t kMin = -1e18;
 constexpr SubSet kMinSubset = {kMax, kMin, 0};
 
 std::ostream& operator<<(std::ostream& os, const SubSet& subset) {
@@ -103,10 +107,6 @@ public:
 
 class Solution {
 private:
-    static const int64_t kMin = std::numeric_limits<int64_t>::min();
-    static const int64_t kMax = std::numeric_limits<int64_t>::max();
-    constexpr static SubSet kMinSubset = {kMin, kMax, 0};
-
     int size_;
     int64_t min_weight_;
     int64_t max_weight_;
@@ -115,7 +115,7 @@ private:
     static std::vector<SubSet> GetMasks(std::vector<SubSet>&& array) {
         std::vector<SubSet> masks;
         int size = array.size();
-        for (int mask = 1; mask < (1 << size); ++mask) {
+        for (int mask = 0; mask < (1 << size); ++mask) {
             SubSet current_subset = {0, 0, mask};
             for (int current_bit = 0; current_bit < size; ++current_bit) {
                 if ((mask & (1 << current_bit)) > 0) {
@@ -182,13 +182,33 @@ public:
         std::vector<SubSet> right_masks =
             GetMasks(std::vector(mid_iterator, array_.end()));
 
-        sort(left_masks.begin(), left_masks.end());
-        sort(right_masks.begin(), right_masks.end());
+        auto compare_by_weight = [](const SubSet& lhs, const SubSet& rhs) {
+            return lhs.weight < rhs.weight;
+        };
+
+        sort(left_masks.begin(), left_masks.end(), compare_by_weight);
+        sort(right_masks.begin(), right_masks.end(), compare_by_weight);
+
+        std::cout << "left masks: " << std::endl;
+        Print(left_masks);
+
+        std::cout << "right masks: " << std::endl;
+        Print(right_masks);
+        std::cout << "----------------------------" << std::endl;
+
+        SegmentTree<SubSet> seg_tree(size_, kMinSubset);
+        for (int index = 0; index < size_; ++index) {
+            seg_tree.Update(index, array_[index]);
+        }
 
         SubSet answer = kMinSubset;
+        std::cout << "start: " << answer;
         for (const auto& left_mask : left_masks) {
-            int left_bound = min_weight_ - left_mask.weight;
-            int right_bound = max_weight_ - left_mask.weight;
+            int64_t left_bound = min_weight_ - left_mask.weight;
+            int64_t right_bound = max_weight_ - left_mask.weight;
+
+            std::cout << "left_bound: " << left_bound << std::endl;
+            std::cout << "right_bound: " << right_bound << std::endl;
 
             int left_index = FindFirstNotLessByWeight(right_masks, left_bound);
             int right_index =
@@ -196,15 +216,17 @@ public:
 
             if (left_index != -1 && right_index != -1 &&
                 left_index <= right_index) {
-                SubSet max_right_subset;
+                SubSet max_right_subset =
+                    seg_tree.GetMax(left_index, right_index);
+                std::cout << "max_right_subset: " << max_right_subset
+                          << std::endl;
+                SubSet current_res = left_mask + max_right_subset;
+                std::cout << "candidate: " << current_res;
+                answer = std::max(answer, current_res);
             }
         }
 
-        // std::cout << "left masks: " << std::endl;
-        // Print(left_masks);
-
-        // std::cout << "right masks: " << std::endl;
-        // Print(right_masks);
+        std::cout << "answer: " << answer;
     }
 };
 
@@ -217,42 +239,30 @@ int64_t SelectRandom(int64_t left_bound, int64_t right_bound) {
 }
 
 int main() {
-    // Solution kotak;
-    // kotak.Input();
-    // kotak.Solve();
+    std::cout << kMin << ", " << kMax << std::endl;
 
-    int size;
-    std::cin >> size;
+    Solution kotak;
+    kotak.Input();
+    kotak.Solve();
 
-    std::vector<SubSet> array(size);
-    for (int index = 0; index < size; ++index) {
-        array[index].weight = SelectRandom(0, kMax);
-        array[index].cost = SelectRandom(0, kMax);
-        array[index].mask = 0;
-    }
+    // bool ok = true;
+    // for (int left_index = 0; left_index < size; ++left_index) {
+    //     for (int right_index = left_index; right_index < size; ++right_index)
+    //     {
+    //         SubSet segtree_max = segtree.GetMax(left_index, right_index);
+    //         SubSet brute_max = kMinSubset;
+    //         for (int index = left_index; index <= right_index; ++index) {
+    //             brute_max = std::max(brute_max, array[index]);
+    //         }
 
-    SegmentTree<SubSet> segtree(size, kMinSubset);
-    for (int index = 0; index < size; ++index) {
-        segtree.Update(index, array[index]);
-    }
+    //         ok &= (brute_max == segtree_max);
+    //         if (brute_max != segtree_max) {
+    //             std::cout << "brute_max: " << brute_max;
+    //             std::cout << "segtree_max: " << segtree_max;
+    //             assert(brute_max != segtree_max);
+    //         }
+    //     }
+    // }
 
-    bool ok = true;
-    for (int left_index = 0; left_index < size; ++left_index) {
-        for (int right_index = left_index; right_index < size; ++right_index) {
-            SubSet segtree_max = segtree.GetMax(left_index, right_index);
-            SubSet brute_max = kMinSubset;
-            for (int index = left_index; index <= right_index; ++index) {
-                brute_max = std::max(brute_max, array[index]);
-            }
-
-            ok &= (brute_max == segtree_max);
-            if (brute_max != segtree_max) {
-                std::cout << "brute_max: " << brute_max;
-                std::cout << "segtree_max: " << segtree_max;
-                assert(brute_max != segtree_max);
-            }
-        }
-    }
-
-    std::cout << "Stress Test: " << std::boolalpha << ok << std::endl;
+    // std::cout << "Stress Test: " << std::boolalpha << ok << std::endl;
 }
