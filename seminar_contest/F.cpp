@@ -34,7 +34,7 @@ const int64_t kMax = 1e18;
 const int64_t kMin = -1e18;
 constexpr SubSet kMinSubset = {kMax, kMin, 0};
 
-const int kIntMax = 20;
+const int kIntMax = 1000;
 
 std::ostream& operator<<(std::ostream& os, const SubSet& subset) {
     os << "{" << subset.weight << ", " << subset.cost << "} - ";
@@ -141,62 +141,62 @@ private:
     }
     static int FindFirstNotLessByWeight(const std::vector<SubSet>& array,
                                         int64_t target_weight) {
-        bool is_sorted = true;
-        for (size_t index = 0; index + 1 < array.size(); ++index) {
-            is_sorted &= (array[index].weight <= array[index + 1].weight);
-        }
-        assert(is_sorted);
+        // bool is_sorted = true;
+        // for (size_t index = 0; index + 1 < array.size(); ++index) {
+        //     is_sorted &= (array[index].weight <= array[index + 1].weight);
+        // }
+        // assert(is_sorted);
 
-        for (size_t index = 0; index < array.size(); ++index) {
-            if (array[index].weight >= target_weight) {
-                return index;
-            }
-        }
-        return -1;
-
-        // int left_index = 0;
-        // int right_index = static_cast<int>(array.size()) - 1;
-        // int best_index = -1;
-        // while (left_index <= right_index) {
-        //     int mid_index = (left_index + right_index) / 2;
-        //     if (array[mid_index].weight >= target_weight) {
-        //         best_index = mid_index;
-        //         right_index = mid_index - 1;
-        //     } else {
-        //         left_index = mid_index + 1;
+        // for (size_t index = 0; index < array.size(); ++index) {
+        //     if (array[index].weight >= target_weight) {
+        //         return index;
         //     }
         // }
-        // return best_index;
+        // return -1;
+
+        int left_index = 0;
+        int right_index = static_cast<int>(array.size()) - 1;
+        int best_index = -1;
+        while (left_index <= right_index) {
+            int mid_index = (left_index + right_index) / 2;
+            if (array[mid_index].weight >= target_weight) {
+                best_index = mid_index;
+                right_index = mid_index - 1;
+            } else {
+                left_index = mid_index + 1;
+            }
+        }
+        return best_index;
     }
     static int FindLastNotGreaterByWeight(const std::vector<SubSet>& array,
                                           int64_t target_weight) {
-        bool is_sorted = true;
-        for (size_t index = 0; index + 1 < array.size(); ++index) {
-            is_sorted &= (array[index].weight <= array[index + 1].weight);
-        }
-        assert(is_sorted);
+        // bool is_sorted = true;
+        // for (size_t index = 0; index + 1 < array.size(); ++index) {
+        //     is_sorted &= (array[index].weight <= array[index + 1].weight);
+        // }
+        // assert(is_sorted);
 
-        for (int index = static_cast<int>(array.size()) - 1; index >= 0;
-             --index) {
-            if (array[index].weight <= target_weight) {
-                return index;
-            }
-        }
-        return -1;
-
-        // int left_index = 0;
-        // int right_index = static_cast<int>(array.size()) - 1;
-        // int best_index = -1;
-        // while (left_index <= right_index) {
-        //     int mid_index = (left_index + right_index) / 2;
-        //     if (array[mid_index].weight <= target_weight) {
-        //         best_index = mid_index;
-        //         left_index = mid_index + 1;
-        //     } else {
-        //         right_index = mid_index - 1;
+        // for (int index = static_cast<int>(array.size()) - 1; index >= 0;
+        //      --index) {
+        //     if (array[index].weight <= target_weight) {
+        //         return index;
         //     }
         // }
-        // return best_index;
+        // return -1;
+
+        int left_index = 0;
+        int right_index = static_cast<int>(array.size()) - 1;
+        int best_index = -1;
+        while (left_index <= right_index) {
+            int mid_index = (left_index + right_index) / 2;
+            if (array[mid_index].weight <= target_weight) {
+                best_index = mid_index;
+                left_index = mid_index + 1;
+            } else {
+                right_index = mid_index - 1;
+            }
+        }
+        return best_index;
     }
 
 public:
@@ -213,7 +213,7 @@ public:
         }
     }
     void StressInput() {
-        std::cout << "Size Please: ";
+        // std::cout << "Size Please: ";
         std::cin >> size_;
         std::cout << std::endl;
 
@@ -223,8 +223,8 @@ public:
             std::swap(min_weight_, max_weight_);
         }
 
-        std::cout << "min_weight: " << min_weight_ << std::endl;
-        std::cout << "max_weight: " << max_weight_ << std::endl;
+        // std::cout << "min_weight: " << min_weight_ << std::endl;
+        // std::cout << "max_weight: " << max_weight_ << std::endl;
 
         array_.resize(size_);
         for (int index = 0; index < size_; ++index) {
@@ -242,7 +242,7 @@ public:
                     current_subset += array_[current_bit];
                 }
             }
-            std::cout << "RESULT: " << current_subset.weight << std::endl;
+            // std::cout << "RESULT: " << current_subset.weight << std::endl;
             if (current_subset.weight >= min_weight_ &&
                 current_subset.weight <= max_weight_) {
                 answer = std::max(answer, current_subset);
@@ -254,20 +254,20 @@ public:
         int mid_index = size_ / 2;
         auto mid_iterator = array_.begin() + mid_index;
 
-        std::cout << "--------------------------------------------------------"
-                  << std::endl;
+        // std::cout << "--------------------------------------------------------"
+        //           << std::endl;
 
-        std::cout << "Left array: ";
-        for (auto it = array_.begin(); it != mid_iterator; ++it) {
-            std::cout << *it << std::endl;
-        }
+        // std::cout << "Left array: ";
+        // for (auto it = array_.begin(); it != mid_iterator; ++it) {
+        //     std::cout << *it << std::endl;
+        // }
 
-        std::cout << "Right array: ";
-        for (auto it = mid_iterator; it != array_.end(); ++it) {
-            std::cout << *it << std::endl;
-        }
-        std::cout << "---------------------------------------------------------"
-                  << std::endl;
+        // std::cout << "Right array: ";
+        // for (auto it = mid_iterator; it != array_.end(); ++it) {
+        //     std::cout << *it << std::endl;
+        // }
+        // std::cout << "---------------------------------------------------------"
+        //           << std::endl;
 
         std::vector<SubSet> left_masks =
             GetMasks(std::vector(array_.begin(), mid_iterator));
@@ -281,12 +281,12 @@ public:
         sort(left_masks.begin(), left_masks.end(), compare_by_weight);
         sort(right_masks.begin(), right_masks.end(), compare_by_weight);
 
-        std::cout << "-----left masks: " << std::endl;
-        Print(left_masks);
+        // std::cout << "-----left masks: " << std::endl;
+        // Print(left_masks);
 
-        std::cout << "-----right masks: " << std::endl;
-        Print(right_masks);
-        std::cout << "----------------------------" << std::endl;
+        // std::cout << "-----right masks: " << std::endl;
+        // Print(right_masks);
+        // std::cout << "----------------------------" << std::endl;
 
         int right_masks_size = right_masks.size();
         SegmentTree<SubSet> seg_tree(right_masks_size, kMinSubset);
@@ -295,20 +295,20 @@ public:
         }
 
         SubSet answer = kMinSubset;
-        std::cout << "start: " << answer;
+        // std::cout << "start: " << answer;
         for (const auto& left_mask : left_masks) {
             int64_t left_bound = min_weight_ - left_mask.weight;
             int64_t right_bound = max_weight_ - left_mask.weight;
 
-            std::cout << "left_bound: " << left_bound << std::endl;
-            std::cout << "right_bound: " << right_bound << std::endl;
+            // std::cout << "left_bound: " << left_bound << std::endl;
+            // std::cout << "right_bound: " << right_bound << std::endl;
 
             int left_index = FindFirstNotLessByWeight(right_masks, left_bound);
             int right_index =
                 FindLastNotGreaterByWeight(right_masks, right_bound);
 
-            std::cout << "FOUND SEGMENT: " << "[" << left_index << ", "
-                      << right_index << "]" << std::endl;
+            // std::cout << "FOUND SEGMENT: " << "[" << left_index << ", "
+            //           << right_index << "]" << std::endl;
 
             if (left_index != -1 && right_index != -1 &&
                 left_index <= right_index) {
@@ -319,11 +319,11 @@ public:
 
                 SubSet max_right_subset =
                     seg_tree.GetMax(left_index, right_index);
-                std::cout << "max_right_subset: " << max_right_subset
-                          << std::endl;
+                // std::cout << "max_right_subset: " << max_right_subset
+                //           << std::endl;
 
                 SubSet current_res = left_mask + max_right_subset;
-                std::cout << "CANDIDATE: " << current_res;
+                // std::cout << "CANDIDATE: " << current_res;
 
                 assert(current_res.weight >= min_weight_);
                 assert(current_res.weight <= max_weight_);
@@ -337,7 +337,7 @@ public:
 };
 
 int main() {
-    std::cout << kMin << ", " << kMax << std::endl;
+    // std::cout << kMin << ", " << kMax << std::endl;
 
     Solution kotak;
     // kotak.Input();
