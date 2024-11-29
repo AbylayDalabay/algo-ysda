@@ -6,11 +6,6 @@
 #include <random>
 
 class LinearHashFunction {
-private:
-    int64_t slope_;
-    int64_t intercept_;
-    int64_t mod_prime_;
-
 public:
     LinearHashFunction(int64_t slope, int64_t intercept, int64_t mod_prime)
         : slope_(slope), intercept_(intercept), mod_prime_(mod_prime) {
@@ -26,6 +21,11 @@ public:
         }
         return hash_value;
     }
+
+private:
+    int64_t slope_;
+    int64_t intercept_;
+    int64_t mod_prime_;
 };
 
 int64_t SelectRandom(int64_t first, int64_t last) {
@@ -95,24 +95,23 @@ public:
         if (elements.empty()) {
             hash_function_.reset();
             hash_table_.clear();
-            hash_table_size_ = 0;
             return;
         }
         int64_t size = elements.size();
-        hash_table_size_ = size * size;
+        int64_t hash_table_size = size * size;
 
         auto predicate = [&](LinearHashFunction hash_function) -> bool {
             std::vector<int64_t> bucket_sizes =
-                CountBucketSizes(elements, hash_function, hash_table_size_);
+                CountBucketSizes(elements, hash_function, hash_table_size);
             int64_t square_sum_buckets = SumOfSquares(bucket_sizes);
             return square_sum_buckets == size;
         };
 
         hash_function_ = GenerateFunctionWithPredicate(predicate);
-        hash_table_.assign(hash_table_size_, std::nullopt);
+        hash_table_.assign(hash_table_size, std::nullopt);
         for (auto element : elements) {
             int64_t hash_value = hash_function_.value()(element);
-            hash_value %= hash_table_size_;
+            hash_value %= hash_table_size;
             hash_table_[hash_value] = element;
         }
     }
@@ -121,40 +120,42 @@ public:
             return false;
         }
         int64_t hash_value = hash_function_.value()(value);
-        hash_value %= hash_table_size_;
+        int64_t hash_table_size = hash_table_.size();
+        hash_value %= hash_table_size;
         return hash_table_[hash_value] == value;
     }
 
 private:
     std::optional<LinearHashFunction> hash_function_;
     std::vector<std::optional<int>> hash_table_;
-    int64_t hash_table_size_;
 };
 
 class FixedSet {
+private:
+    static const int64_t kCoef = 10;
+
 public:
     void Initialize(const std::vector<int>& elements) {
         if (elements.empty()) {
-            hash_table_size_ = 0;
             hash_function_.reset();
             buckets_.clear();
             return;
         }
-        hash_table_size_ = elements.size();
+        int64_t hash_table_size = elements.size();
 
         auto predicate = [&](LinearHashFunction hash_function) -> bool {
             std::vector<int64_t> bucket_sizes =
-                CountBucketSizes(elements, hash_function, hash_table_size_);
+                CountBucketSizes(elements, hash_function, hash_table_size);
             int64_t square_sum_buckets = SumOfSquares(bucket_sizes);
-            return square_sum_buckets <= kCoef * hash_table_size_;
+            return square_sum_buckets <= kCoef * hash_table_size;
         };
 
         hash_function_ = GenerateFunctionWithPredicate(predicate);
         std::vector<std::vector<int>> bucket_values = DivideIntoBuckets(
-            elements, hash_function_.value(), hash_table_size_);
+            elements, hash_function_.value(), hash_table_size);
 
-        buckets_.resize(hash_table_size_);
-        for (int i = 0; i < hash_table_size_; ++i) {
+        buckets_.resize(hash_table_size);
+        for (int i = 0; i < hash_table_size; ++i) {
             buckets_[i].Initialize(bucket_values[i]);
         }
     }
@@ -163,7 +164,9 @@ public:
             return false;
         }
         int64_t hash_value = hash_function_.value()(value);
-        hash_value %= hash_table_size_;
+        int64_t hash_table_size = buckets_.size();
+
+        hash_value %= hash_table_size;
 
         const BucketHashTable& current_bucket = buckets_[hash_value];
 
@@ -171,8 +174,6 @@ public:
     }
 
 private:
-    static const int64_t kCoef = 10;
-    int64_t hash_table_size_ = 0;
     std::optional<LinearHashFunction> hash_function_;
     std::vector<BucketHashTable> buckets_;
 };
