@@ -1,0 +1,7 @@
+ - 1: https://contest.yandex.ru/contest/67814/problems/
+ - 2: https://contest.yandex.ru/contest/68404/problems/
+ - 3: https://contest.yandex.ru/contest/69639/enter
+ - 4: https://contest.yandex.ru/contest/70532/enter/
+ - 5: https://contest.yandex.ru/contest/71636/enter
+ - 6: https://contest.yandex.ru/contest/72511/problems/
+ - seminar_contest: https://contest.yandex.ru/contest/69027/enter
